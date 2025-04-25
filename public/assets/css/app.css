@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.form-group {
+    position: relative;
+}
+.form-control, .form-select {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+.form-control:focus + .form-label,
+.form-control:not(:placeholder-shown) + .form-label {
+    top: 0;
+    left: 10px;
+    font-size: 12px;
+    color: #6c757d;
+}
+.form-label {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    transform: translateY(-50%);
+    pointer-events: none;
+    background-color: white;
+    transition: all 0.2s ease;
+}
+.form-select + .form-label{
+    top: 0;
+    left: 10px;
+    font-size: 12px;
+    color: #6c757d;
+}
+textarea + .form-label{
+    top: 0;
+    left: 10px;
+    font-size: 12px;
+    color: #6c757d;
+}
+.form-control.is-invalid + .form-label,
+.form-select.is-invalid + .form-label {
+    top: 0;
+    left: 10px;
+    font-size: 12px;
+    color: red;
+}
+
+.profile-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+}
+
+.username {
+    vertical-align: middle;
+}
+
+.dropdown-menu .logout:hover {
+    background-color: red;
+    color: white;
+}
+
+.dropdown-menu .admin_panel:hover {
+    background-color: orange;
+    color: white;
+}
+
+
+.truncate {
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis;
+}
+
+  .footer-contacts img.icon {
+    width: 32px;
+    height: 32px;
+    /* Дополнительно можно добавить margin, padding или другие стили */
+  }
+
+
+.note-marker {
+            background: url('/images/note-icon.png') no-repeat center center;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        .notes-sidebar {
+            border-left: 1px solid #ddd;
+            padding-left: 15px;
+        }
+
+.document-item {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            transition: background-color 0.2s ease;
+        }
+        .document-item:hover {
+            background-color: #f8f9fa;
+        }
+        .document-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+        .document-excerpt {
+            color: #666;
+        }
+        .document-updated {
+            font-size: 0.9rem;
+            color: #999;
+        }
