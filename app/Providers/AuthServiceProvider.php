@@ -10,8 +10,6 @@ use App\Models\Quiz;
 use App\Policies\QuizPolicy;
 use App\Models\Question;
 use App\Policies\QuestionPolicy;
-use App\Models\Workbook;
-use App\Policies\WorkbookPolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -24,7 +22,6 @@ class AuthServiceProvider extends ServiceProvider
     Quiz::class => QuizPolicy::class,
     Question::class => QuestionPolicy::class,
     User::class => UserPolicy::class,
-Workbook::class => WorkbookPolicy::class,
     ];
 
     /**

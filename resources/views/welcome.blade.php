@@ -10,6 +10,7 @@
 <link rel="icon" href="{{ asset('assets/img/favicon/favicon.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/img/bootstrap-icons/bootstrap-icons.min.css') }}">
     <title>Runote - @yield('title', 'Главная')</title>
 </head>
 <body>

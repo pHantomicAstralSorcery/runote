@@ -3,7 +3,6 @@
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\UnsetAdminMode;
-use App\Http\Middleware\CheckAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,7 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth'           => Authenticate::class,
             'admin'          => AdminMiddleware::class,
             'unsetadminmode' => UnsetAdminMode::class,
-	'check.access'   => CheckAccess::class,
         ]);
     })
     ->withProviders([

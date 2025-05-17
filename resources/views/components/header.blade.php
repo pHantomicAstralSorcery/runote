@@ -44,7 +44,7 @@
 <li><a class="dropdown-item" href="#">↯ Мой профиль</a></li>
                         <li><a class="dropdown-item" href="{{ route('quizzes.completedQuizzes') }}"> Пройденные тесты</a></li>
                         <li><a class="dropdown-item" href="{{ route('quizzes.myQuizzes') }}"> Мои тесты</a></li>
-                        <li><a class="dropdown-item" href="{{ route('workbooks.index')}}">⇱ Моя тетрадь</a></li>
+                        <li><a class="dropdown-item" href="#">⇱ Моя тетрадь</a></li>
                             @if(Auth::user()->isAdmin())
                                 <li><a class="dropdown-item admin_panel" href="{{ route('admin_panel.index') }}">※ Панель админа</a></li>
 @endif

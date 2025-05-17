@@ -3,34 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Notebook;
+use OwenIt\Auditing\Contracts\Auditable;
+use OwenIt\Auditing\Auditable as AuditableTrait;
 
-class NamedLink extends Model
+class NamedLink extends Model implements Auditable
 {
-    use HasFactory;
+    use AuditableTrait;
 
-    protected $fillable = [
-        'workbook_id',
-        'name',
-        'slug',
-        'active',
-        'open_at',
-        'close_at',
-    ];
+    protected $guarded = ['id'];
 
-    protected $casts = [
-        'active'   => 'boolean',
-        'open_at'  => 'datetime',
-        'close_at' => 'datetime',
-    ];
+    public $timestamps = ['created_at'];
 
-    public function workbook()
+    /**
+     * Ссылка принадлежит тетради
+     */
+    public function notebook(): BelongsTo
     {
-        return $this->belongsTo(Workbook::class);
-    }
-
-    public function responses()
-    {
-        return $this->hasMany(Response::class);
+        return $this->belongsTo(Notebook::class);
     }
 }

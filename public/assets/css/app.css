@@ -100,36 +100,7 @@ textarea + .form-label{
   }
 
 
-.note-marker {
-            background: url('/images/note-icon.png') no-repeat center center;
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-        .notes-sidebar {
-            border-left: 1px solid #ddd;
-            padding-left: 15px;
-        }
-
-.document-item {
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            transition: background-color 0.2s ease;
-        }
-        .document-item:hover {
-            background-color: #f8f9fa;
-        }
-        .document-title {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: bold;
-        }
-        .document-excerpt {
-            color: #666;
-        }
-        .document-updated {
-            font-size: 0.9rem;
-            color: #999;
-        }
+.block-item.dragging {
+  opacity: 0.5;
+  border: 2px dashed #007bff;
+}

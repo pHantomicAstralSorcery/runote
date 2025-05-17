@@ -8,10 +8,6 @@ use App\Http\Controllers\QuizController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\{
-    WorkbookController, FieldController,
-    NamedLinkController, ResponseController
-};
 
 Route::middleware('unsetadminmode')->group(function () {
      /*
@@ -35,17 +31,6 @@ Route::view('/auth', 'users.auth')->name('auth');
 Route::post('/register', [UserController::class, 'register_post'])->name('register_post');
 Route::post('/auth', [UserController::class, 'auth_post'])->name('auth_post');
 });
-     /*
-     * ===============================
-     *  Рабочая тетрадь (именные ссылки)
-     * ===============================
-     */
-Route::get('links/{slug}', [NamedLinkController::class,'show'])
-     ->middleware('check.access')
-     ->name('links.show');
-Route::post('links/{slug}', [ResponseController::class,'store'])
-     ->middleware('check.access')
-     ->name('links.submit');
 
 Route::middleware(['auth', 'unsetadminmode'])->group(function () {
      /*
@@ -54,18 +39,6 @@ Route::middleware(['auth', 'unsetadminmode'])->group(function () {
      * ===============================
      */
     Route::get('/logout', [UserController::class, 'logout'])->name('logout');
-
-     /*
-     * ===============================
-     *  Рабочая тетрадь (создатель)
-     * ===============================
-     */
-     Route::resource('workbooks', WorkbookController::class);
-    Route::post('workbooks/{workbook}/revert/{version}', [WorkbookController::class,'revert'])
-         ->name('workbooks.revert');
-    Route::resource('workbooks.fields', FieldController::class);
-    Route::resource('workbooks.links', NamedLinkController::class)
-         ->only(['index','store','destroy']);
      /*
      * ===============================
      *  Тесты
