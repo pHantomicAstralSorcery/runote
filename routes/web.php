@@ -30,6 +30,7 @@ Route::get('/about_us', function () {
      * ===============================
      */
 Route::view('/register', 'users.register')->name('register');
+Route::view('/requirement', 'users.requirement')->name('requirement');
 Route::view('/auth', 'users.auth')->name('auth');
 Route::post('/register', [UserController::class, 'register_post'])->name('register_post');
 Route::post('/auth', [UserController::class, 'auth_post'])->name('auth_post');
