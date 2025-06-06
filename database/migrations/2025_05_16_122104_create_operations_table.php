@@ -6,28 +6,29 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('operations', function (Blueprint $table) {
+       Schema::create('operations', function (Blueprint $table) {
             $table->id();
             $table->string('auditable_type');
             $table->unsignedBigInteger('auditable_id');
             $table->string('operation_type');
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->timestamp('created_at')->useCurrent();
+            $table->unsignedBigInteger('user_id')->nullable();
+           $table->timestamps();
+
+            $table->foreign('user_id')
+                  ->references('id')->on('users')
+                  ->nullOnDelete();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('operations');
+       Schema::table('operations', function (Blueprint $table) {
+           $table->dropForeign(['user_id']);
+       });
+       Schema::dropIfExists('operations');
     }
 };

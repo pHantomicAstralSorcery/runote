@@ -3,111 +3,101 @@
 namespace App\Http\Controllers;
 
 use App\Models\Block;
+use App\Models\Page;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 
 class BlockController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
+     * Сохранение нового блока.
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'page_id' => 'required|exists:pages,id',
+            'type'    => 'required|string',
+            'data'    => 'nullable|array',
+        ]);
+
+        $block = Block::create([
+            'page_id' => $data['page_id'],
+            'type'    => $data['type'],
+            'data'    => $data['data'] ?? null,
+        ]);
+
+        return response()->json($block);
     }
 
     /**
-     * Display the specified resource.
-     */
-    public function show(Block $block)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Block $block)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
+     * Обновление существующего блока.
      */
     public function update(Request $request, Block $block)
     {
-        //
+        $data = $request->validate([
+            'data' => 'required|array',
+        ]);
+
+        $block->update(['data' => $data['data']]);
+        return response()->json($block);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Удаление блока.
      */
     public function destroy(Block $block)
     {
-        //
-    }
-    
-    /**
-     * Принимает изображение, сохраняет оригинал и генерирует превью.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function uploadImage(Request $request)
-    {
-        // 1. Валидация файла: обязательное изображение до 5 МБ, только JPEG, PNG, GIF или WebP :contentReference[oaicite:4]{index=4}
-        $request->validate([
-            'image' => 'required|image|max:5120|mimes:jpeg,png,gif,webp',
-        ]);
-
-        // 2. Генерация уникального имени и сохранение оригинала в storage/app/public/images :contentReference[oaicite:5]{index=5}
-        $file     = $request->file('image');
-        $filename = time() . '_' . Str::random(6) . '.' . $file->getClientOriginalExtension();
-        $path     = $file->storeAs('public/images', $filename);
-
-        // 3. Создание директории для миниатюр, если её нет
-        Storage::makeDirectory('public/images/thumbs');
-
-        // 4. Генерация миниатюры 300×200 и сохранение в storage/app/public/images/thumbs :contentReference[oaicite:6]{index=6}
-        $thumbPath = storage_path('app/public/images/thumbs/' . $filename);
-        Image::make($file)
-             ->fit(300, 200)
-             ->save($thumbPath);
-
-        // 5. Возвращаем JSON с URL оригинала и превью (через симлинк public/storage) :contentReference[oaicite:7]{index=7}
-        return response()->json([
-            'url'       => Storage::url('images/' . $filename),
-            'thumb_url' => Storage::url('images/thumbs/' . $filename),
-        ]);
+        $block->delete();
+        return response()->noContent();
     }
 
+public function uploadImage(Request $request)
+{
+    $request->validate([
+        'image' => 'required|image|max:5120|mimes:jpeg,png,gif,webp',
+    ]);
+
+    $file = $request->file('image');
+    $extension = $file->getClientOriginalExtension();
+    $filename = time().'_'.Str::random(6).'.'.$extension;
+
+    // 1) Сохраняем оригинал
+    Storage::disk('public')->putFileAs('images', $file, $filename);
+
+    // 2) Убеждаемся, что папка для миниатюр есть
+    Storage::disk('public')->makeDirectory('images/thumbs');
+
+    // 3) Генерируем миниатюру
+    $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $filename;
+    Image::read($file)
+        ->cover(300, 200)
+        ->save($tempPath);
+
+    // 4) Загружаем миниатюру в Storage
+    Storage::disk('public')->putFileAs('images/thumbs', new \Illuminate\Http\File($tempPath), $filename);
+
+    // 5) Удаляем временный файл
+    unlink($tempPath);
+
+    // 6) Возвращаем URL’ы
+    return response()->json([
+        'url' => Storage::url("images/{$filename}"),
+        'thumb_url' => Storage::url("images/thumbs/{$filename}"),
+    ]);
+}
+
+
+
+
     /**
-     * Обновляет порядок блоков на странице.
+     * Изменение порядка блоков на странице.
      */
     public function reorder(Request $request, Page $page)
     {
         $order = $request->input('order', []);
         foreach ($order as $index => $blockId) {
-            // Обновляем поле order в БД
             Block::where('id', $blockId)
                  ->where('page_id', $page->id)
                  ->update(['order' => $index]);

@@ -2,32 +2,48 @@
 
 namespace App\Observers;
 
-use App\Models\Operation;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
+use OwenIt\Auditing\Models\Audit;
+use Illuminate\Support\Facades\Auth;
 
 class AuditableObserver
 {
-    public function saving(Model $model)
+    public function saved($model)
     {
-        $model->oldSnapshot = $model->getOriginal();
-    }
-
-    public function saved(Model $model)
-    {
+        // Получаем старые и новые атрибуты модели
+        $old = $model->getOriginal();
         $new = $model->getAttributes();
-        $old = $model->oldSnapshot ?? [];
 
-        $oldValues = Arr::except(array_diff_assoc($old, $new), ['updated_at']);
-        $newValues = Arr::except(array_diff_assoc($new, $old), ['updated_at']);
+        // Функция для безопасного строки: массивы — в JSON, остальное приводим к строке
+        $stringify = function ($value) {
+            if (is_array($value) || is_object($value)) {
+                return json_encode($value);
+            }
+            return (string) $value;
+        };
 
-        Operation::create([
-            'auditable_type' => get_class($model),
-            'auditable_id'   => $model->getKey(),
-            'operation_type' => $model->wasRecentlyCreated ? 'create' : 'update',
-            'old_values'     => $oldValues ?: null,
-            'new_values'     => $newValues ?: null,
-            'user_id'        => auth()->id(),
-        ]);
+        // Приводим все значения к строкам, чтобы избежать ошибки
+        $oldString = array_map($stringify, $old);
+        $newString = array_map($stringify, $new);
+
+        // Сравниваем
+        $changes = array_diff_assoc($newString, $oldString);
+
+        if (count($changes) > 0) {
+            Audit::create([
+                'user_type'     => get_class(Auth::user()),
+                'user_id'       => Auth::id(),
+                'event'         => 'updated',
+                'auditable_type'=> get_class($model),
+                'auditable_id'  => $model->getKey(),
+                'old_values'    => json_encode(array_intersect_key($old, $changes)),
+                'new_values'    => json_encode(array_intersect_key($new, $changes)),
+                'url'           => request()->fullUrl(),
+                'ip_address'    => request()->ip(),
+                'user_agent'    => substr(request()->userAgent() ?? '', 0, 1023),
+                'tags'          => null,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+        }
     }
 }

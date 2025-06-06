@@ -8,7 +8,6 @@ use App\Models\Page;
 use App\Models\Block;
 use App\Models\ResponseField;
 use App\Observers\AuditableObserver;
-use App\Observers\BlockObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,6 +22,5 @@ class AppServiceProvider extends ServiceProvider
         Page::observe(AuditableObserver::class);
         Block::observe(AuditableObserver::class);
         ResponseField::observe(AuditableObserver::class);
-        Block::observe(BlockObserver::class);
     }
 }

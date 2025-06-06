@@ -7,59 +7,99 @@ use Illuminate\Http\Request;
 
 class NotebookController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
     /**
-     * Display a listing of the resource.
+     * Список всех тетрадей.
      */
     public function index()
     {
-        //
+        $notebooks = Notebook::paginate(10);
+        return view('notebooks.index', compact('notebooks'));
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Форма создания тетради.
      */
     public function create()
     {
-        //
+        return view('notebooks.create');
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Сохранение новой тетради.
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'title'  => 'required|string|max:255',
+            'access' => 'required|in:open,closed',
+        ]);
+
+        $notebook = Notebook::create($data);
+
+        return redirect()
+            ->route('notebooks.index')
+            ->with('status', 'Тетрадь создана');
     }
 
     /**
-     * Display the specified resource.
+     * Показ конкретной тетради (редактирование).
      */
     public function show(Notebook $notebook)
     {
-        //
+        // Для простоты переадресуем на edit
+        return redirect()->route('notebooks.edit', $notebook);
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Форма редактирования тетради.
      */
     public function edit(Notebook $notebook)
     {
-        //
+        return view('notebooks.edit', compact('notebook'));
     }
 
     /**
-     * Update the specified resource in storage.
+     * Обновление тетради.
      */
     public function update(Request $request, Notebook $notebook)
     {
-        //
+        $data = $request->validate([
+            'title'  => 'required|string|max:255',
+            'access' => 'required|in:open,closed',
+        ]);
+
+        $notebook->update($data);
+
+        return redirect()
+            ->route('notebooks.index')
+            ->with('status', 'Тетрадь обновлена');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Удаление тетради.
      */
     public function destroy(Notebook $notebook)
     {
-        //
+        $notebook->delete();
+        return redirect()
+            ->route('notebooks.index')
+            ->with('status', 'Тетрадь удалена');
     }
+
+public function saveContent(Request $request, Notebook $notebook)
+{
+    $data = $request->validate([
+        'content' => 'nullable|string',
+    ]);
+
+    $notebook->update(['content' => $data['content']]);
+
+    return response()->json(['status' => 'ok']);
+}
+
 }

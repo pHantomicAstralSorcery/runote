@@ -1,8 +1,8 @@
 @extends('welcome')
 @section('title', 'Регистрация')
 @section('content')
-    <div class="container">
-        <div class="row">
+    <div class="container vh-100">
+        <div class="row vh-100 align-items-center">
             <div class="col"></div>
             <div class="col">
                 <form method="post" action="">

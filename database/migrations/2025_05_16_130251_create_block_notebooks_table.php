@@ -11,11 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('block_notebook', function (Blueprint $table) {
-    $table->foreignId('block_id')->constrained()->cascadeOnDelete();
-    $table->foreignId('notebook_id')->constrained()->cascadeOnDelete();
-    $table->primary(['block_id', 'notebook_id']);
-});
+        Schema::create('block_notebooks', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('block_id');
+            $table->unsignedBigInteger('notebook_id');
+            $table->integer('order')->default(0);
+            $table->timestamps();
+
+            $table->foreign('block_id')
+                  ->references('id')->on('blocks')
+                  ->cascadeOnDelete();
+
+            $table->foreign('notebook_id')
+                  ->references('id')->on('notebooks')
+                  ->cascadeOnDelete();
+        }); 
     }
 
     /**

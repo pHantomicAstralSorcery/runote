@@ -7,6 +7,9 @@ use App\Http\Controllers\NoteReplyController;
 use App\Http\Controllers\QuizController;
 use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\BlockController;
+use App\Http\Controllers\NotebookController;
+use App\Http\Controllers\NamedLinkController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('unsetadminmode')->group(function () {
@@ -30,6 +33,13 @@ Route::view('/register', 'users.register')->name('register');
 Route::view('/auth', 'users.auth')->name('auth');
 Route::post('/register', [UserController::class, 'register_post'])->name('register_post');
 Route::post('/auth', [UserController::class, 'auth_post'])->name('auth_post');
+     /*
+     * ===============================
+     *  Тетради (ссылка)
+     * ===============================
+     */
+Route::get('named-links/{token}', [NamedLinkController::class, 'view'])->name('named_links.view');
+Route::post('named-links/{token}/submit', [NamedLinkController::class, 'submit'])->name('named_links.submit');
 });
 
 Route::middleware(['auth', 'unsetadminmode'])->group(function () {
@@ -68,6 +78,35 @@ Route::middleware(['auth', 'unsetadminmode'])->group(function () {
     Route::post('/quizzes/{quiz}/questions/delete-selected', [QuestionController::class, 'deleteSelected'])->name('questions.deleteSelected');
     Route::post('/quizzes/{quiz}/questions/delete-all', [QuestionController::class, 'deleteAll'])->name('questions.deleteAll');
     Route::get('/quizzes/{quiz}/timeout', [QuizController::class, 'timeout'])->name('quizzes.timeout');
+     /*
+     * ===============================
+     *  Тетради
+     * ===============================
+     */
+    Route::resource('notebooks', NotebookController::class);
+
+    // Именные ссылки (вложенные маршруты для конкретной тетради)
+    Route::get('notebooks/{notebook}/named-links', [NamedLinkController::class, 'index'])
+        ->name('named_links.index');
+    Route::get('notebooks/{notebook}/named-links/create', [NamedLinkController::class, 'create'])
+        ->name('named_links.create');
+    Route::post('notebooks/{notebook}/named-links', [NamedLinkController::class, 'store'])
+        ->name('named_links.store');
+    Route::get('notebooks/{notebook}/named-links/{namedLink}/edit', [NamedLinkController::class, 'edit'])
+        ->name('named_links.edit');
+    Route::put('notebooks/{notebook}/named-links/{namedLink}', [NamedLinkController::class, 'update'])
+        ->name('named_links.update');
+    Route::delete('notebooks/{notebook}/named-links/{namedLink}', [NamedLinkController::class, 'destroy'])
+        ->name('named_links.destroy');
+Route::post('notebooks/{notebook}/save', [NotebookController::class, 'saveContent'])
+    ->name('notebooks.save');
+
+    Route::post('pages/{page}/blocks', [BlockController::class, 'store'])->name('blocks.store');
+    Route::put('blocks/{block}', [BlockController::class, 'update'])->name('blocks.update');
+    Route::delete('blocks/{block}', [BlockController::class, 'destroy'])->name('blocks.destroy');
+    Route::post('pages/{page}/blocks/reorder', [BlockController::class, 'reorder'])->name('blocks.reorder');
+    Route::post('blocks/upload-image', [BlockController::class, 'uploadImage'])
+         ->name('blocks.uploadImage');
 });
 
 Route::middleware(['auth', 'admin'])->group(function () {

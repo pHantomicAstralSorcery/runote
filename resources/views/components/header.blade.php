@@ -10,6 +10,9 @@
                         <li class="nav-item">
                             <a class="nav-link" href="#">Управление пользователями</a>
                         </li>
+                      <li class="nav-item">
+                            <a class="nav-link" href="#">Управление тетрадями</a>
+                        </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#">Управление тестами</a>
                         </li>
@@ -18,7 +21,10 @@
                             <a class="nav-link" href="{{ route('/') }}">Главная</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ route('quizzes.index') }}">Тесты</a>
+                            <a class="nav-link" href="{{ route('notebooks.index') }}"> Моя тетрадь</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('quizzes.index') }}"><span class="badge bg-success">NEW!</span> Тесты</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('about_us') }}">О нас</a>
@@ -41,10 +47,9 @@
                                     </button>
                                 </form></li>
                             @else
-<li><a class="dropdown-item" href="#">↯ Мой профиль</a></li>
+                        <li><a class="dropdown-item" href="{{ route('notebooks.index') }}">⇱ Моя тетрадь</a></li>
                         <li><a class="dropdown-item" href="{{ route('quizzes.completedQuizzes') }}"> Пройденные тесты</a></li>
                         <li><a class="dropdown-item" href="{{ route('quizzes.myQuizzes') }}"> Мои тесты</a></li>
-                        <li><a class="dropdown-item" href="#">⇱ Моя тетрадь</a></li>
                             @if(Auth::user()->isAdmin())
                                 <li><a class="dropdown-item admin_panel" href="{{ route('admin_panel.index') }}">※ Панель админа</a></li>
 @endif

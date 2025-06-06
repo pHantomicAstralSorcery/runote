@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('notebooks', function (Blueprint $table) {
@@ -16,15 +13,25 @@ return new class extends Migration
             $table->string('title');
             $table->enum('access', ['open', 'closed'])->default('open');
             $table->unsignedBigInteger('current_version_id')->nullable();
-            $table->timestamps();                                   
+
+            // **Новое поле для хранения снимка**
+            $table->json('oldSnapshot')->nullable();
+
+            $table->foreign('current_version_id')
+                  ->references('id')
+                  ->on('notebook_versions')
+                  ->nullOnDelete();
+
+            $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        Schema::table('notebooks', function (Blueprint $table) {
+            $table->dropForeign(['current_version_id']);
+        });
+
         Schema::dropIfExists('notebooks');
     }
 };

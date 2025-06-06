@@ -112,45 +112,40 @@ class NamedLinkController extends Controller
     /**
      * Приём и автосохранение ответов ученика
      */
-    public function submit(Request $request, string $token)
-    {
-        $link = NamedLink::where('token', $token)->firstOrFail();
+   public function submit(Request $request, string $token)
+{
+    $link = NamedLink::where('token', $token)->firstOrFail();
+    $data = $request->validate([
+        'responses'   => 'required|array',
+        'responses.*' => 'nullable|string',
+    ]);
 
-        // Ожидаем, что в запросе будет «responses» ассоциативный массив:
-        // responses[<response_field_id>] = <user_input>
-        $data = $request->validate([
-            'responses'   => 'required|array',
-            'responses.*' => 'nullable|string',
-        ]);
+    $results = [];
+    foreach ($data['responses'] as $fieldId => $input) {
+        $field = ResponseField::findOrFail($fieldId);
+        $isCorrect = null;
 
-        foreach ($data['responses'] as $fieldId => $input) {
-            // Автопроверка: если у ResponseField есть правильный ответ
-            $field = \App\Models\ResponseField::findOrFail($fieldId);
-
-            $isCorrect = null;
-            if ($field->field_type === 'text' && isset($field->correct_answers)) {
-                // простое точное совпадение (регистр- и пробел-независимо)
-                $corrects = array_map('trim', array_map('mb_strtolower', $field->correct_answers));
-                $user = trim(mb_strtolower($input));
-                $isCorrect = in_array($user, $corrects, true);
-            }
-            // Для других типов (scale, select) можно аналогично
-
-            // Обновляем или создаём запись
-            StudentResponse::updateOrCreate(
-                [
-                    'named_link_id'    => $link->id,
-                    'response_field_id'=> $fieldId,
-                ],
-                [
-                    'user_input' => $input,
-                    'is_correct' => $isCorrect,
-                ]
-            );
+        if ($field->field_type === 'text' && $field->correct_answers) {
+            $corrects = array_map('mb_strtolower', $field->correct_answers);
+            $user    = mb_strtolower(trim($input));
+            $isCorrect = in_array($user, $corrects, true);
         }
 
-        return redirect()
-            ->route('named_links.view', $link->token)
-            ->with('status', 'Ответы сохранены.');
+        StudentResponse::updateOrCreate(
+            [
+                'named_link_id'     => $link->id,
+                'response_field_id' => $fieldId,
+            ],
+            [
+                'user_input' => $input,
+                'is_correct' => $isCorrect,
+            ]
+        );
+
+        $results[$fieldId] = $isCorrect;
     }
+
+    return response()->json(['results' => $results]);
+}
+
 }

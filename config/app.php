@@ -123,5 +123,8 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-
+'aliases' => [
+    'Auth'  => Illuminate\Support\Facades\Auth::class,
+    'Image' => Intervention\Image\Facades\Image::class,
+],
 ];

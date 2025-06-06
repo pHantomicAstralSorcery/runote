@@ -8,15 +8,41 @@
   <div class="row">
     <div class="col text-center">
       <h1 class="display-4">Добро пожаловать в RUNOTE</h1>
-      <p class="lead">Создавайте, проходите и оценивайте тесты легко и быстро.</p>
-      <a href="{{ route('quizzes.index') }}" class="btn btn-success btn-lg mt-3">⪼ Начать тестирование ⪻</a>
+      <p class="lead">Инновационная платформа для создания интерактивных электронных рабочих тетрадей и <span class="badge bg-success">NEW!</span> тестов.</p>
+      <div class="d-flex justify-content-center mt-3 ">
+      <a href="{{ route('notebooks.index') }}" class="btn btn-primary btn-lg me-3">⪼ Создать тетрадь ⪻</a>
+      <a href="{{ route('quizzes.index') }}" class="btn btn-success btn-lg">⪼  Начать тестирование ⪻</a>
+</div>
     </div>
   </div>
+
+<!-- Блок "Создавайте тесты" -->
+  <div class="row my-5 align-items-center">
+    <div class="col-md-6">
+      <h2>Создавайте тетради</h2>
+      <p>С помощью нашей платформы вы легко создадите электронную рабочую тетрадь с разнообразными заданиями и интерактивными элементами. Настраивайте структуру, добавляйте текст, изображения и упражнения — всё для удобного и эффективного обучения!</p>
+    </div>
+    <div class="col-md-6">
+            <img src="{{ asset('assets/img/static_img/create-note.png')}}" class="d-block w-100" alt="Создавайте тетради">
+    </div>
+  </div>
+
+ <!-- Блок "Проходите тесты" -->
+  <div class="row my-5 align-items-center">
+    <div class="col-md-6 order-md-2">
+      <h2>Проверяйте учеников</h2>
+      <p>Отслеживайте прогресс учеников и оценивайте их работу в режиме онлайн. Получайте быстрые и точные результаты, чтобы своевременно выявлять пробелы и помогать в их устранении. Контроль знаний стал проще и удобнее!</p>
+    </div>
+    <div class="col-md-6 order-md-1">
+            <img src="{{ asset('assets/img/static_img/check.png')}}" class="d-block w-100" alt="Проверяйте учеников">
+    </div>
+  </div>
+
 
   <!-- Блок "Создавайте тесты" -->
   <div class="row my-5 align-items-center">
     <div class="col-md-6">
-      <h2>Создавайте тесты</h2>
+      <h2><span class="badge bg-success">NEW!</span> Создавайте тесты</h2>
       <p>Наша платформа позволяет вам создавать тесты с множеством вопросов, настраиваемыми вариантами ответов и гибкими настройками. Не бойтесь экспериментировать – ошибки превращаются в опыт!</p>
     </div>
     <div class="col-md-6">
@@ -52,7 +78,7 @@
   <!-- Блок "Проходите тесты" -->
   <div class="row my-5 align-items-center">
     <div class="col-md-6 order-md-2">
-      <h2>Проходите тесты</h2>
+      <h2><span class="badge bg-success">NEW!</span> Проходите тесты</h2>
       <p>Проверяйте свои знания, проходите тесты и получайте мгновенную обратную связь. Наш интерфейс интуитивно понятен – даже если вы решили вернуться и изменить ответ, ваш финальный выбор всегда будет засчитан!</p>
     </div>
     <div class="col-md-6 order-md-1">

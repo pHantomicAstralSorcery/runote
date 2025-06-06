@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/img/bootstrap-icons/bootstrap-icons.min.css') }}">
+    <script src="{{ asset('assets/js/bootstrap.bundle.js') }}"></script>
     <title>Runote - @yield('title', 'Главная')</title>
 </head>
 <body>
@@ -19,7 +20,26 @@
     @yield('content')
 </main>
 @include('components.footer')
-<script src="{{ asset('assets/js/bootstrap.bundle.js') }}"></script>
-@yield('scripts')
+<div class="notification-container" id="notificationContainer"></div>
 </body>
+<script>
+class Notification {
+  static show(message, type = 'info', duration = 3000) {
+    const container = document.getElementById('notificationContainer');
+    if (!container) return;
+
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    container.appendChild(notification);
+    setTimeout(() => notification.classList.add('show'), 10);
+
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 300);
+    }, duration);
+  }
+}
+</script>
 </html>

@@ -17,6 +17,22 @@ class Notebook extends Model implements Auditable
     use AuditableTrait;
 
     protected $guarded = ['id'];
+     /**
+     * Приводим oldSnapshot к нужному типу (JSON ↔ PHP-массив).
+     * При создании/обновлении, если в атрибутах нет 'oldSnapshot', в БД
+     * будет подставляться NULL.
+     */
+    protected $casts = [
+        'oldSnapshot' => 'array',
+    ];
+
+    /**
+     * Устанавливаем атрибут по умолчанию — null.
+     * Это гарантирует, что при create() в запросе не попадёт PHP-массив.
+     */
+    protected $attributes = [
+        'oldSnapshot' => null,
+    ];
 
     /**
      * Связь: тетрадь → страницы
