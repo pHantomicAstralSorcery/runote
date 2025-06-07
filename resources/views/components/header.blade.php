@@ -43,10 +43,10 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('/') }}">Главная</a>
                         </li>
-                        <li class="nav-item d-none d-lg-block"> {{-- Скрыть "Моя тетрадь" в основной навигации на ПК --}}
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ route('notebooks.index') }}"> Моя тетрадь</a>
                         </li>
-                        <li class="nav-item d-none d-lg-block">
+                        <li class="nav-item">
                             <a class="nav-link" href="{{ route('quizzes.index') }}"><span class="badge bg-success">NEW!</span> Тесты</a>
                         </li>
                         <li class="nav-item">
@@ -70,16 +70,10 @@
                             </li>
                         @else
                             <li class="nav-item d-lg-none"> {{-- Только для мобильных --}}
-                                <a class="nav-link" href="{{ route('notebooks.index') }}">⇱ Моя тетрадь</a>
+                                <a class="nav-link" href="{{ route('quizzes.myQuizzes') }}"> Мои тесты</a>
                             </li>
-                        <li class="nav-item d-lg-none">
-                            <a class="nav-link" href="{{ route('quizzes.index') }}"><span class="badge bg-success">NEW!</span> Тесты</a>
-                        </li>
                             <li class="nav-item d-lg-none"> {{-- Только для мобильных --}}
                                 <a class="nav-link" href="{{ route('quizzes.completedQuizzes') }}"> Пройденные тесты</a>
-                            </li>
-                            <li class="nav-item d-lg-none"> {{-- Только для мобильных --}}
-                                <a class="nav-link" href="{{ route('quizzes.myQuizzes') }}"> Мои тесты</a>
                             </li>
                             @if(Auth::user()->isAdmin())
                                 <li class="nav-item d-lg-none"> {{-- Только для мобильных --}}
