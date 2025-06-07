@@ -87,11 +87,12 @@
                         </li>
                     @endauth
                 </ul>
+            @guest()
                  <div class="ms-auto d-flex flex-column d-lg-none">
                     <a href="{{ route('auth') }}" class="btn btn-outline-success mb-2 mb-md-0 me-md-2">Войти</a>
                     <a href="{{ route('register') }}" class="btn btn-outline-secondary">Зарегистрироваться</a>
                 </div>
-
+            @endguest
                 @auth()
                     <!-- Аватар и имя пользователя для ПК (с выпадающим меню) -->
                     <!-- d-none d-lg-flex: Скрыт на мобильных, виден на ПК как flex -->
