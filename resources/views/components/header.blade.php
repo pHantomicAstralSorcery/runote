@@ -15,7 +15,7 @@
                 </div>
             @endauth
             @guest()
-                 <div class="ms-auto d-flex flex-column flex-md-row order-lg-last d-lg-none">
+                 <div class="ms-auto d-flex flex-md-row order-lg-last d-none d-md-block">
                     <a href="{{ route('auth') }}" class="btn btn-outline-success mb-2 mb-md-0 me-md-2">Войти</a>
                     <a href="{{ route('register') }}" class="btn btn-outline-secondary">Зарегистрироваться</a>
                 </div>
@@ -93,6 +93,10 @@
                         </li>
                     @endauth
                 </ul>
+                 <div class="ms-auto d-flex flex-column d-lg-none">
+                    <a href="{{ route('auth') }}" class="btn btn-outline-success mb-2 mb-md-0 me-md-2">Войти</a>
+                    <a href="{{ route('register') }}" class="btn btn-outline-secondary">Зарегистрироваться</a>
+                </div>
 
                 @auth()
                     <!-- Аватар и имя пользователя для ПК (с выпадающим меню) -->

@@ -24,6 +24,7 @@ Route::get('/', function () {
 Route::get('/about_us', function () {
     return view('about_us');
 })->name('about_us');
+Route::view('/blocked', 'blocked')->name('blocked');
      /*
      * ===============================
      *  Авторизация/Регистрация
@@ -44,6 +45,22 @@ Route::post('named-links/{token}/submit', [NamedLinkController::class, 'submit']
 });
 
 Route::middleware(['auth', 'unsetadminmode'])->group(function () {
+     /*
+     * ===============================
+     *  На время обновления - разделы заблокированны
+     * ===============================
+     */
+Route::any('notebooks/{any?}', function () {
+    return redirect()->route('blocked');
+})->where('any', '.*');
+
+Route::any('pages/{any?}', function () {
+    return redirect()->route('blocked');
+})->where('any', '.*');
+
+Route::any('blocks/{any?}', function () {
+    return redirect()->route('blocked');
+})->where('any', '.*');
      /*
      * ===============================
      *  Выход
