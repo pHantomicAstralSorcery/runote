@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('blocks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('page_id')->constrained('pages')->cascadeOnDelete();
+            $table->string('uuid')->unique(); // Уникальный UUID для отслеживания
             $table->string('type');
             $table->integer('order')->default(0);
             $table->unsignedBigInteger('parent_block_id')->nullable();

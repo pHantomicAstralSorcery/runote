@@ -9,8 +9,8 @@
     <div class="col text-center">
       <h1 class="display-4">Добро пожаловать в RUNOTE</h1>
       <p class="lead">Инновационная платформа для создания интерактивных электронных рабочих тетрадей и <span class="badge bg-success">NEW!</span> тестов.</p>
-      <div class="d-flex justify-content-center mt-3 ">
-      <a href="{{ route('notebooks.index') }}" class="btn btn-primary btn-lg me-3">⪼ Создать тетрадь ⪻</a>
+      <div class="d-flex flex-md-row flex-column justify-content-center mt-3 ">
+      <a href="{{ route('notebooks.index') }}" class="btn btn-primary btn-lg me-md-3 mb-3 mb-md-0">⪼ Создать тетрадь ⪻</a>
       <a href="{{ route('quizzes.index') }}" class="btn btn-success btn-lg">⪼  Начать тестирование ⪻</a>
 </div>
     </div>

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('notebook_id')
                   ->constrained('notebooks')
                   ->cascadeOnDelete();
-            $table->integer('order')->default(0); 
+            $table->integer('order')->default(0);
             $table->string('title')->nullable();
             $table->timestamps();
         });

@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // named_links (модифицирована)
         Schema::create('named_links', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('notebook_id')->constrained('notebooks')->cascadeOnDelete();
-            $table->string('token', 64)->unique();
-            $table->string('title')->nullable();
-            $table->timestamp('created_at')->useCurrent();
+            $table->foreignId('notebook_id')->constrained('notebooks')->cascadeOnDelete(); // Ссылка на оригинальную тетрадь
+            $table->string('token', 64)->unique(); // Уникальный токен для ссылки
+            $table->string('title')->nullable(); // Имя ученика
+            $table->timestamp('created_at')->useCurrent(); // Только дата создания ссылки
         });
     }
 

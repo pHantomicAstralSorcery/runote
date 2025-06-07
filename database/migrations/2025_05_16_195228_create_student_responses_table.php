@@ -13,18 +13,18 @@ return new class extends Migration
     {
         Schema::create('student_responses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('response_field_id')
-                  ->constrained('response_fields')
+            $table->foreignId('student_notebook_instance_id')
+                  ->constrained('student_notebook_instances')
                   ->cascadeOnDelete();
-            $table->foreignId('named_link_id')
-                  ->constrained('named_links')
-                  ->cascadeOnDelete();
+            $table->string('response_field_uuid'); // UUID поля, а не ID
             $table->text('user_input')->nullable();
             $table->boolean('is_correct')->nullable();
             $table->foreignId('checked_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('checked_at')->nullable();
             $table->timestamps();
-            $table->unique(['response_field_id','named_link_id']);
+
+            // Уникальность по экземпляру ученика и UUID поля
+            $table->unique(['student_notebook_instance_id', 'response_field_uuid'], 'student_response_unique_field_instance');
         });
     }
 

@@ -12,7 +12,7 @@
     </div>
   </div>
 
-  <!-- Блок "Наша миссия" -->
+  <!-- Блок "Наша миссия" (текст - картинка) -->
   <div class="row my-5 align-items-center">
     <div class="col-md-6">
       <h2>Наша миссия</h2>
@@ -23,14 +23,14 @@
     </div>
   </div>
 
-  <!-- Блок "Наша команда" -->
+  <!-- Блок "Наша команда" (картинка - текст) -->
   <div class="row my-5 align-items-center">
-    <div class="col-md-6">
-            <img src="{{ asset('assets/img/static_img/our-team.png')}}" class="d-block w-100" alt="Наша команда">
-    </div>
-    <div class="col-md-6">
+    <div class="col-md-6 order-md-2"> {{-- На ПК будет первой колонкой (слева) --}}
       <h2>Наша команда</h2>
       <p>Мы — небольшая команда профессионалов, объединенных страстью к инновациям в образовании. Наша цель — сделать процесс обучения интересным, эффективным и, конечно, немного забавным. Тетради и тесты <3</p>
+    </div>
+    <div class="col-md-6 order-md-1"> {{-- На ПК будет второй колонкой (справа) --}}
+            <img src="{{ asset('assets/img/static_img/our-team.png')}}" class="d-block w-100" alt="Наша команда">
     </div>
   </div>
 </div>

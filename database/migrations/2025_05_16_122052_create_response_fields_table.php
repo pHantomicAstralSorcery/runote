@@ -13,9 +13,14 @@ return new class extends Migration
     {
         Schema::create('response_fields', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('block_id')->constrained('blocks')->cascadeOnDelete();
-            $table->enum('field_type', ['text','scale','select','file']);
-            $table->json('validation_rules')->nullable(); 
+            $table->string('uuid')->unique(); // Стабильный UUID для поля
+            $table->foreignId('notebook_snapshot_id')
+                  ->constrained('notebook_snapshots')
+                  ->cascadeOnDelete();
+            $table->enum('field_type', ['text', 'select', 'file', 'scale']); // Добавил scale, если он был
+            $table->string('label')->nullable(); // Название поля
+            $table->integer('order')->default(0); // Порядок поля внутри снимка
+            $table->json('validation_rules')->nullable();
             $table->json('correct_answers')->nullable();
             $table->timestamps();
         });

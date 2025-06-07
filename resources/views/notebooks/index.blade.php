@@ -21,7 +21,10 @@
         </li>
       @endforeach
     </ul>
-    {{ $notebooks->links() }}
+    <!-- Пагинация -->
+    <div class="d-flex justify-content-center mt-4">
+        {{ $notebooks->links('components.pagination') }}
+    </div>
   @else
     <p>Тетради не найдены.</p>
   @endif
