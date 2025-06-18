@@ -11,13 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // named_links (модифицирована)
         Schema::create('named_links', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('notebook_id')->constrained('notebooks')->cascadeOnDelete(); // Ссылка на оригинальную тетрадь
-            $table->string('token', 64)->unique(); // Уникальный токен для ссылки
-            $table->string('title')->nullable(); // Имя ученика
-            $table->timestamp('created_at')->useCurrent(); // Только дата создания ссылки
+            $table->foreignId('notebook_id')->constrained('notebooks')->cascadeOnDelete();
+            $table->string('token', 64)->unique();
+            $table->string('title')->nullable();
+            
+            // ИСПРАВЛЕНИЕ: Добавлен столбец is_active
+            $table->boolean('is_active')->default(true); 
+            
+            // ИСПРАВЛЕНИЕ: Используем стандартный метод timestamps()
+            // Он создает created_at и updated_at, которые ожидает Eloquent
+            $table->timestamps(); 
         });
     }
 

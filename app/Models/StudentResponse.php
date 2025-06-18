@@ -3,32 +3,45 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\ResponseField;
-use App\Models\NamedLink;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StudentResponse extends Model
 {
     protected $table = 'student_responses';
 
-    protected $guarded = ['id',];
+    protected $fillable = [
+        'student_notebook_instance_id',
+        'response_field_uuid', // Теперь это UUID
+        'user_input',
+        'is_correct',
+        'checked_by',
+        'checked_at',
+    ];
 
     protected $casts = [
         'is_correct' => 'boolean',
         'checked_at' => 'datetime',
     ];
 
-    /** Поле-ответ, к которому привязан ответ */
-    public function responseField(): BelongsTo
+    /** Связь: Ответ принадлежит экземпляру тетради ученика */
+    public function studentNotebookInstance(): BelongsTo
     {
-        return $this->belongsTo(ResponseField::class);
+        return $this->belongsTo(StudentNotebookInstance::class);
     }
 
-    /** Именная ссылка (ученик), который дал ответ */
-    public function namedLink(): BelongsTo
+    /**
+     * Связь: Ответ относится к конкретному полю-ответу (через UUID).
+     * Это "виртуальная" связь, так как она не использует PK/FK напрямую.
+     * Если вам нужен объект ResponseField, его придется искать по UUID в связанном снимке.
+     */
+    public function responseField(): BelongsTo // Keep BelongsTo for type hinting simplicity, but note the UUID usage
     {
-        return $this->belongsTo(NamedLink::class);
+        // Это более сложная связь, т.к. response_field_uuid не является прямым FK.
+        // Для получения объекта ResponseField обычно требуется дополнительная логика.
+        // Например:
+        // $response->studentNotebookInstance->snapshot->responseFields()->where('uuid', $response->response_field_uuid)->first();
+        // Тем не менее, для общей структуры модели оставим так, но понимаем, что это не классическая FK.
+        return $this->belongsTo(ResponseField::class, 'response_field_uuid', 'uuid');
     }
 
     /** Пользователь, проверивший ответ */

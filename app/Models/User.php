@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany; // Добавлено для notebooks
 
 class User extends Authenticatable
 {
@@ -23,13 +24,19 @@ class User extends Authenticatable
         return $this->belongsToMany(Quiz::class, 'quiz_user')->withPivot('score')->withTimestamps();
     }
 
-    public function isAdmin()
+    /**
+     * Связь: пользователь создал много тетрадей.
+     */
+    public function notebooks(): HasMany
+    {
+        return $this->hasMany(Notebook::class, 'user_id');
+    }
+
+    /**
+     * Проверяет, является ли пользователь администратором.
+     */
+    public function isAdmin(): bool
     {
         return $this->isAdmin;
     }
-
-    public function workbooks()
-    {
-        return $this->hasMany(Workbook::class, 'user_id');
-    }    
 }

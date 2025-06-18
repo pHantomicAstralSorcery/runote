@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;  
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Models\Page;
 use App\Models\ResponseField;
 use App\Models\Notebook;
@@ -16,7 +16,7 @@ use OwenIt\Auditing\Auditable as AuditableTrait;
 class Block extends Model implements Auditable
 {
     use AuditableTrait;
-    
+
     protected $guarded = ['id'];
 
     protected $casts = [
@@ -24,7 +24,7 @@ class Block extends Model implements Auditable
     ];
 
     /**
-     * Блок принадлежит странице
+     * Связь: блок принадлежит странице
      */
     public function page(): BelongsTo
     {
@@ -32,15 +32,19 @@ class Block extends Model implements Auditable
     }
 
     /**
-     * Блок содержит поля-ответы
+     * Блок теперь НЕ содержит ResponseFields напрямую.
+     * ResponseFields теперь принадлежат NotebookSnapshot.
+     * Эту связь удаляем, так как она больше не соответствует новой структуре.
+     * Если вам нужно получить поля-ответы, это будет через Snapshot.
      */
-    public function responseFields(): HasMany
-    {
-        return $this->hasMany(ResponseField::class);
-    }
+    // public function responseFields(): HasMany
+    // {
+    //     return $this->hasMany(ResponseField::class);
+    // }
 
     /**
-     * Блок может быть использован в нескольких тетрадях
+     * Связь: блок может быть использован в нескольких тетрадях (через pivot)
+     * Это по-прежнему актуально для структуры редактора.
      */
     public function notebooks(): BelongsToMany
     {

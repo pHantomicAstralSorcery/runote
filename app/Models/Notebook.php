@@ -5,8 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\Page;
-use App\Models\NotebookVersion;
+use App\Models\NotebookSnapshot;
 use App\Models\Block;
 use App\Models\BlockNotebook;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -17,22 +18,6 @@ class Notebook extends Model implements Auditable
     use AuditableTrait;
 
     protected $guarded = ['id'];
-     /**
-     * Приводим oldSnapshot к нужному типу (JSON ↔ PHP-массив).
-     * При создании/обновлении, если в атрибутах нет 'oldSnapshot', в БД
-     * будет подставляться NULL.
-     */
-    protected $casts = [
-        'oldSnapshot' => 'array',
-    ];
-
-    /**
-     * Устанавливаем атрибут по умолчанию — null.
-     * Это гарантирует, что при create() в запросе не попадёт PHP-массив.
-     */
-    protected $attributes = [
-        'oldSnapshot' => null,
-    ];
 
     /**
      * Связь: тетрадь → страницы
@@ -43,15 +28,32 @@ class Notebook extends Model implements Auditable
     }
 
     /**
-     * Связь: тетрадь → версии
+     * Связь: тетрадь → снимки (версии)
      */
-    public function versions(): HasMany
+    public function snapshots(): HasMany
     {
-        return $this->hasMany(NotebookVersion::class);
+        return $this->hasMany(NotebookSnapshot::class);
+    }
+
+    /**
+     * Связь: тетрадь → текущий активный снимок
+     */
+    public function currentSnapshot(): BelongsTo
+    {
+        return $this->belongsTo(NotebookSnapshot::class, 'current_snapshot_id');
+    }
+
+    /**
+     * Связь: тетрадь имеет много именованных ссылок (для учеников)
+     */
+    public function namedLinks(): HasMany
+    {
+        return $this->hasMany(NamedLink::class);
     }
 
     /**
      * Связь: тетрадь ↔ блоки (через кастомный pivot)
+     * Используется для структуры тетради в редакторе, не для отображения ученикам.
      */
     public function blocks(): BelongsToMany
     {
@@ -62,7 +64,17 @@ class Notebook extends Model implements Auditable
     }
 
     /**
+     * Связь: тетрадь принадлежит пользователю (автору).
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
      * Аксессор: процент заполнения (для всех полей-ответов во всех блоках)
+     * Эта логика устарела и будет заменена подсчетом прогресса в StudentNotebookInstance.
+     * Оставлена для совместимости, но не будет использоваться в новой архитектуре.
      */
     public function getCompletionPercentAttribute(): float
     {

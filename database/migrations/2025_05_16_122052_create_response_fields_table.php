@@ -13,16 +13,21 @@ return new class extends Migration
     {
         Schema::create('response_fields', function (Blueprint $table) {
             $table->id();
-            $table->string('uuid')->unique(); // Стабильный UUID для поля
+            $table->string('uuid'); // УБРАЛИ ->unique() здесь!
             $table->foreignId('notebook_snapshot_id')
                   ->constrained('notebook_snapshots')
                   ->cascadeOnDelete();
-            $table->enum('field_type', ['text', 'select', 'file', 'scale']); // Добавил scale, если он был
-            $table->string('label')->nullable(); // Название поля
-            $table->integer('order')->default(0); // Порядок поля внутри снимка
+            $table->enum('field_type', ['text', 'select', 'file', 'scale']);
+            $table->string('label')->nullable();
+            $table->integer('order')->default(0);
             $table->json('validation_rules')->nullable();
             $table->json('correct_answers')->nullable();
             $table->timestamps();
+
+            // ДОБАВЛЯЕМ КОМПОЗИТНЫЙ УНИКАЛЬНЫЙ ИНДЕКС
+            // Это означает, что комбинация notebook_snapshot_id и uuid должна быть уникальной.
+            // Один и тот же UUID может быть в разных снимках.
+            $table->unique(['notebook_snapshot_id', 'uuid']);
         });
     }
 

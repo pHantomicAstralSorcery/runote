@@ -29,7 +29,7 @@
             'closed' => 'Закрытый',
           ],
           'selected' => old('access'),
-'placeholderDisabled' => true,
+          'placeholderDisabled' => true,
           'disabled' => false,
         ])@endcomponent
     </div>

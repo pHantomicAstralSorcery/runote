@@ -5,30 +5,279 @@
 @section('content')
 
 <div class="container my-4">
-<h1 class="text-center my-3">
-  <span class="fw-light">Редактирование тетради:</span> {{ $notebook->title }}
-</h1>
-  @include('notebooks.partials._toolbar')
-  @include('notebooks.partials._modal-table')
-  @include('notebooks.partials._modal-fields')
-  @include('notebooks.partials._modal-image')
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+        <a href="{{ route('notebooks.index') }}" class="btn btn-outline-secondary mb-2 mb-md-0">
+            <i class="bi bi-arrow-left"></i> К списку тетрадей
+        </a>
+        <h1 class="text-center my-0 mx-auto" style="flex-grow: 1;">
+            <span class="fw-light">Редактирование тетради:</span> <span id="notebook-title-header">{{ $notebook->title }}</span>
+        </h1>
+        <div style="min-width: 135px;"></div> <!-- Spacer -->
+    </div>
 
-  <div id="editor"
-       contenteditable="true"
-       data-save-url="{{ route('notebooks.save', $notebook) }}"
-       class="border p-3"
-       style="min-height:600px;">
-       <p>Добро пожаловать в <strong>редактор</strong>!</p>
-        <p>Это <em>начальное</em> содержимое. Вы можете <del>изменить</del> его.</p>
-        <ul><li>Пункт 1</li><li>Пункт 2</li></ul>
-        <p style="text-align: center;">
-            <img src="https://a.d-cd.net/af498as-960.jpg" alt="Пример Картинки">
-        </p>
-        <p>Еще немного текста для примера.</p>
-      {!! $notebook->content !!}
-  </div>
+    <ul class="nav nav-tabs mb-3" id="notebookEditorTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="editor-tab" data-bs-toggle="tab" data-bs-target="#editor-pane" type="button" role="tab" aria-controls="editor-pane" aria-selected="true">
+                <i class="bi bi-pencil-square me-2"></i>Редактор
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings-pane" type="button" role="tab" aria-controls="settings-pane" aria-selected="false">
+                <i class="bi bi-gear-fill me-2"></i>Настройки и ссылки
+            </button>
+        </li>
+         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="versions-tab" data-bs-toggle="tab" data-bs-target="#versions-pane" type="button" role="tab" aria-controls="versions-pane" aria-selected="false">
+                <i class="bi bi-clock-history me-2"></i>Версии
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="notebookEditorTabsContent">
+        <div class="tab-pane fade show active" id="editor-pane" role="tabpanel" aria-labelledby="editor-tab">
+            @include('notebooks.partials._toolbar')
+            @include('notebooks.partials._modal-table')
+            @include('notebooks.partials._modal-fields')
+            @include('notebooks.partials._modal-image')
+            @include('notebooks.partials._modal-link')
+
+            <div id="editor"
+                 contenteditable="true"
+                 data-save-url="{{ route('notebooks.saveSnapshot', $notebook) }}"
+                 class="border p-3"
+                 style="min-height:600px;">
+                 {{-- Content will be dynamically loaded by JS using loadInitialContent() --}}
+            </div>
+        </div>
+        <div class="tab-pane fade" id="settings-pane" role="tabpanel" aria-labelledby="settings-tab">
+            @include('notebooks.partials._settings_general', ['notebook' => $notebook])
+            @include('notebooks.partials._settings_named_links', ['notebook' => $notebook])
+        </div>
+        <div class="tab-pane fade" id="versions-pane" role="tabpanel" aria-labelledby="versions-tab">
+            @include('notebooks.partials._settings_versions', ['notebook' => $notebook])
+        </div>
+    </div>
 </div>
 
+{{-- Inline CSS for notifications and editor elements --}}
+<style>
+    .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050; /* Above Bootstrap modals */
+        display: flex;
+        flex-direction: column-reverse; /* Newest at bottom */
+        align-items: flex-end;
+    }
+    .notification {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 10px 15px;
+        margin-top: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        max-width: 300px;
+        text-align: right;
+    }
+    .notification.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .notification.success { border-color: #28a745; background-color: #d4edda; color: #155724; }
+    .notification.error { border-color: #dc3545; background-color: #f8d7da; color: #721c24; }
+    .notification.info { border-color: #17a2b8; background-color: #d1ecf1; color: #0c5460; }
+    .notification-actions {
+        margin-top: 10px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    .notification .btn-sm {
+        padding: .25rem .5rem;
+        font-size: .875rem;
+        line-height: 1.5;
+        border-radius: .2rem;
+    }
+
+    /* Styles for contenteditable=false wrappers */
+    .img-resize-wrapper, .response-field-wrapper, .table-drag-wrapper {
+        border: 1px dashed #ccc; /* Visual cue for editable blocks */
+        padding: 5px;
+        margin: 5px 0;
+        display: inline-block; /* default for image wrapper */
+        position: relative; /* For handles */
+        vertical-align: top; /* Align inline-block elements nicely */
+        cursor: move;
+        min-height: 20px; /* Ensure they have some height even when empty */
+        box-sizing: border-box; /* Include padding/border in element's total width/height */
+    }
+    /* Specific overrides for response fields */
+    .response-field-wrapper {
+        display: inline-flex; /* Use flex to align icon and text */
+        align-items: center;
+        gap: 5px;
+        background-color: #e9ecef; /* Light gray background */
+        border-color: #ced4da;
+        border-radius: .25rem;
+        padding: .375rem .75rem; /* Bootstrap form-control padding */
+        color: #495057;
+        font-family: 'Inter', sans-serif; /* Use Inter font */
+        box-sizing: border-box;
+    }
+    .response-field-wrapper .response-field {
+        display: flex; /* Make the inner field also flex to align icon and text */
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+    }
+    .response-field-wrapper .response-text {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 200px; /* Limit text width for long labels */
+    }
+    .response-field-wrapper.selected-for-deletion {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+    }
+    .response-field-wrapper .remove-btn {
+        margin-left: 10px;
+        cursor: pointer;
+        color: #dc3545;
+        font-weight: bold;
+        font-size: 1.2em;
+        line-height: 1;
+        border: none;
+        background: none;
+        padding: 0;
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+    }
+    .response-field-wrapper .remove-btn:hover {
+        opacity: 1;
+    }
+
+    /* Table wrapper styling */
+    .table-drag-wrapper {
+        display: block; /* Tables are block level */
+        border-color: #adb5bd;
+    }
+    .table-drag-wrapper.handle-active {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    .table-drag-handle {
+        position: absolute;
+        top: -15px; /* Adjust as needed */
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #0d6efd;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 0.8em;
+        z-index: 10;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.2s ease-in-out;
+    }
+    .table-drag-wrapper:hover .table-drag-handle {
+        opacity: 1; /* Show on hover */
+    }
+    .table-drag-wrapper.handle-active .table-drag-handle {
+        opacity: 1; /* Always show when active */
+    }
+
+    /* Image wrapper specific styling */
+    .img-resize-wrapper {
+        border-color: #adb5bd;
+        /* Default alignment is flex-start, so inline-block might be better for images */
+        display: inline-block;
+    }
+    .img-resize-wrapper.selected {
+        outline: 2px solid #0d6efd; /* Blue border when selected */
+        outline-offset: 2px;
+    }
+    .img-resize-handle {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: #0d6efd;
+        border: 1px solid #fff;
+        border-radius: 50%;
+        z-index: 1;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.2s ease-in-out;
+    }
+    .img-resize-wrapper.selected .img-resize-handle {
+        opacity: 1; /* Show when selected */
+    }
+
+    .img-resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+    .img-resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+    .img-resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+    .img-resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+    .img-resize-handle.n { top: -5px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
+    .img-resize-handle.s { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+    .img-resize-handle.w { left: -5px; top: 50%; transform: translateY(-50%); cursor: w-resize; }
+    .img-resize-handle.e { right: -5px; top: 50%; transform: translateY(-50%); cursor: e-resize; }
+
+    /* Alignment styles for image/field wrappers */
+    .img-resize-wrapper[data-align="left"],
+    .response-field-wrapper[data-align="left"] {
+        float: left;
+        margin-right: 10px;
+    }
+
+    .img-resize-wrapper[data-align="right"],
+    .response-field-wrapper[data-align="right"] {
+        float: right;
+        margin-left: 10px;
+    }
+
+    .img-resize-wrapper[data-align="center"],
+    .response-field-wrapper[data-align="center"] {
+        display: block; /* Make it block to allow auto margins */
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* Editor specific styles */
+    #editor:focus {
+        outline: none;
+        border-color: #86b7fe;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    #editor.preview-mode {
+        border: none;
+        box-shadow: none;
+    }
+    #editor.preview-mode .img-resize-wrapper,
+    #editor.preview-mode .response-field-wrapper,
+    #editor.preview-mode .table-drag-wrapper {
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        cursor: default !important;
+    }
+
+    /* Preview mode for response fields */
+    .preview-field-render-wrapper {
+        display: inline-block; /* Keep it inline with text */
+        margin: 0 5px;
+        vertical-align: middle;
+        /* Ensure inputs fit within the line height */
+    }
+    .preview-response-input, .preview-response-select, .preview-response-file {
+        display: inline-block;
+        width: auto; /* Allow input to size naturally */
+        min-width: 150px; /* Minimum width for visibility */
+        vertical-align: middle;
+    }
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   class EditorCore {
@@ -61,13 +310,50 @@ document.addEventListener('DOMContentLoaded', () => {
       this.reinitializeDynamicElements();
       this.initializeModals();
 
+      // Load initial content from currentSnapshot if available
+      this.loadInitialContent();
+
       if (!this.isPreviewMode()) {
         this.recordState(true, false);
       }
       this.updateUndoRedoButtons();
       this.editor.focus();
       this.updateSelection();
+
+      // Bootstrap tabs initialization
+      const triggerTabList = document.querySelectorAll('#notebookEditorTabs button')
+      triggerTabList.forEach(triggerEl => {
+          const tabTrigger = new bootstrap.Tab(triggerEl)
+          triggerEl.addEventListener('click', event => {
+              event.preventDefault()
+              tabTrigger.show()
+              // If switching to editor tab, ensure it's re-editable and has focus
+              if (triggerEl.id === 'editor-tab' && this.editor.contentEditable === 'false') {
+                  this.togglePreview(); // Exit preview mode
+              }
+          })
+      })
     }
+
+    // New method to load content
+    loadInitialContent() {
+        // Использование оригинального синтаксиса Blade для вставки HTML-контента.
+        // Убедимся, что $notebook->currentSnapshot->content_html корректно преобразуется в JS-строку.
+        const notebookContent = `{!! $notebook->currentSnapshot ? $notebook->currentSnapshot->content_html : '' !!}`;
+        if (notebookContent && notebookContent.trim() !== '') {
+            this.editor.innerHTML = notebookContent;
+        } else {
+            // Default content if no snapshot exists or it's empty
+            this.editor.innerHTML = `<p>Добро пожаловать в <strong>редактор</strong>!</p>
+                                    <p>Это <em>начальное</em> содержимое. Вы можете <del>изменить</del> его.</p>
+                                    <ul><li>Пункт 1</li><li>Пункт 2</li></ul>
+                                    <p style="text-align: center;"><img src="https://placehold.co/400x200/cccccc/333333?text=Пример+Изображения" alt="Пример Картинки"></p>
+                                    <p>Еще немного текста для примера.</p>`;
+        }
+        this.reinitializeDynamicElements(); // Ensure all elements are interactive after loading
+        this.setCursorToEnd(); // Place cursor at the end after loading
+    }
+
 
     _generateMarkerId(prefix) {
       return prefix + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -112,14 +398,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Immediately remove markers from the live DOM
                 startMarker.remove();
                 endMarker.remove();
-                
+
                 // Restore selection to what it was before marker insertion (which might have changed it)
                 sel.removeAllRanges();
-                sel.addRange(range); 
+                sel.addRange(range);
                 this.lastRange = range.cloneRange(); // Update lastRange after potential modification
             }
         }
-        
+
         const currentStateEntry = {
             html: htmlToStore,
             hasMarkers: hasMarkers,
@@ -358,7 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
               this.recordState(false, true);
           }, 700);
       });
-      
+
       const undoButton = document.getElementById('undo-btn');
       if (undoButton) undoButton.addEventListener('click', () => this.undo());
       const redoButton = document.getElementById('redo-btn');
@@ -382,12 +668,28 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (['fontName', 'fontSize', 'foreColor'].includes(cmd)) {
                 // These are handled by change listeners on select/input elements below
             } else if (btn.id === 'createLink') {
-                 btn.addEventListener('click', () => {
-                    this.updateSelection(); // Save current selection before prompt
-                    const url = window.prompt('Введите URL:');
-                    if (url) this.execCommand('createLink', url);
-                });
-            } else if (!['openTableModal', 'insertImage', 'uploadImageBtn', 'togglePreview', 'save-btn'].includes(btn.id) &&
+            btn.addEventListener('click', () => {
+                console.log('Кнопка "Вставить ссылку" нажата.'); // DEBUG: Link button clicked
+                this.updateSelection(); // Сохраняем выделение перед открытием модального окна
+
+                const sel = window.getSelection();
+                const linkTextInput = document.getElementById('linkTextInput');
+                const linkUrlInput = document.getElementById('linkUrlInput');
+                linkUrlInput.value = ''; // Очищаем URL
+
+                if (sel.rangeCount > 0) {
+                    const selectedText = sel.toString().trim();
+                    // Если выделен текст, подставляем его в поле "Текст для отображения"
+                    if (selectedText) {
+                        linkTextInput.value = selectedText;
+                    } else {
+                        linkTextInput.value = ''; // Очищаем, если ничего не выделено
+                    }
+                }
+                // Открываем модальное окно для вставки ссылки
+                this.openModal('linkInsertModal');
+            });
+        } else if (!['openTableModal', 'insertImage', 'uploadImageBtn', 'togglePreview', 'save-btn'].includes(btn.id) &&
                        !btn.closest('.dropdown')) { // Avoid dropdown toggles, and buttons handled separately
                 btn.addEventListener('click', () => this.execCommand(cmd));
             }
@@ -411,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const previewBtn = document.getElementById('togglePreview');
       if (previewBtn) previewBtn.addEventListener('click', () => this.togglePreview());
       const saveBtn = document.getElementById('save-btn');
-      if (saveBtn) saveBtn.addEventListener('click', () => this.saveContent());
+      if (saveBtn) saveBtn.addEventListener('click', () => this.saveContent()); // Renamed this method call to reflect saving snapshot
 
       const tableBtn = document.getElementById('openTableModal');
       if (tableBtn) tableBtn.addEventListener('click', () => this.openModal('tableSettingsModal'));
@@ -490,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (this.currentField && this.currentField.closest('.response-field-wrapper') === selectedFieldWrapper) {
                         this.currentField = null;
                     }
-                    this.recordState(false,true); // Record state after actual removal
+                    this.recordState(false,true);
                     this.updateSelection();
                   }
                 },
@@ -505,7 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.showNotificationWithActions('Удалить таблицу?', [
                 { text: 'Да', class: 'btn-danger', action: () => {
                     activeTableWrapper.remove();
-                    this.recordState(false,true); // Record state after actual removal
+                    this.recordState(false,true);
                     this.updateSelection();
                   }
                 },
@@ -602,6 +904,15 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
       }
 
+      // Добавим проверку на изображение перед выполнением createLink
+      if (cmd === 'createLink') {
+          const selectedImageWrapper = activeRange.commonAncestorContainer.closest('.img-resize-wrapper');
+          if (selectedImageWrapper) {
+              this.showNotification('Нельзя вставить ссылку на изображение напрямую. Используйте HTML-редактирование для этого.', 'info');
+              return; // Предотвращаем вставку ссылки на изображение через execCommand
+          }
+      }
+
       try {
         this.ignoreNextInputEvent = true; // Prevent input event from firing immediately
         document.execCommand(cmd, false, value);
@@ -612,7 +923,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Schedule ignoreNextInputEvent to be reset. timeout 0 pushes to end of event queue.
         setTimeout(() => { this.ignoreNextInputEvent = false; }, 0);
       }
-      
+
       this.updateSelection(); // Update selection AFTER command execution
       this.recordState(false, true); // Record state after command
     }
@@ -729,17 +1040,19 @@ document.addEventListener('DOMContentLoaded', () => {
       this._ensureValidRange(); // Ensure lastRange is current and valid
       this.ensureBlockInsertionPoint(); // Prepare insertion point based on the now valid range
 
-      const fieldId = `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Generate a stable UUID for the field
+      const fieldUUID = crypto.randomUUID();
       let iconClass = '', defaultLabel = '';
 
       if (type === 'text') { iconClass = 'bi bi-pencil'; defaultLabel = 'Текстовое поле'; }
       else if (type === 'select') { iconClass = 'bi bi-list'; defaultLabel = 'Поле-список'; }
       else if (type === 'file') { iconClass = 'bi bi-paperclip'; defaultLabel = 'Поле-файл'; }
+      else if (type === 'scale') { iconClass = 'bi bi-sliders'; defaultLabel = 'Поле-шкала'; } // Added scale type
 
       const fieldHTML = `
           <span class="response-field"
                 data-type="${type}"
-                data-id="${fieldId}"
+                data-uuid="${fieldUUID}"
                 data-label="${this.escapeHtml(defaultLabel)}"
                 contenteditable="false"
                 draggable="false">
@@ -747,10 +1060,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="remove-btn" title="Удалить поле">×</span>
           </span>`;
 
-      const wrapperHtml = `<div class="response-field-wrapper" contenteditable="false" data-field-marker-id="${fieldId}">${fieldHTML}</div>`;
+      const wrapperHtml = `<div class="response-field-wrapper" contenteditable="false" data-field-marker-id="${fieldUUID}">` + fieldHTML + `</div>`;
 
       this.insertHTML(wrapperHtml); // Handles actual insertion and recordState
-      const newWrapper = this.editor.querySelector(`.response-field-wrapper[data-field-marker-id="${fieldId}"]`);
+      const newWrapper = this.editor.querySelector(`.response-field-wrapper[data-field-marker-id="${fieldUUID}"]`);
       if (newWrapper) {
           this.initializeFieldEventsForElement(newWrapper);
           // recordState is called by insertHTML
@@ -767,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initializeFieldEventsForElement(fieldWrapper) {
-        // console.log('initializeFieldEventsForElement for wrapper with field ID:', fieldWrapper.querySelector('.response-field')?.dataset.id);
+        // console.log('initializeFieldEventsForElement for wrapper with field UUID:', fieldWrapper.querySelector('.response-field')?.dataset.uuid);
         const field = fieldWrapper.querySelector('.response-field');
         if (!field) return;
 
@@ -812,12 +1125,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeSetChecked = (id, checked = false) => { const el = document.getElementById(id); if (el) el.checked = checked; };
         const safeSetHTML = (id, html = '') => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 
+        // For all field types, clear the label
+        safeSetValue('textFieldLabel'); // Used for text, select, file, scale
+
+        // CLEAR NEW FILE ACCEPT FIELDS
+        safeSetValue('fileFieldAcceptPreset', '*'); // Reset preset dropdown
+        safeSetValue('fileFieldAcceptManual', '*'); // Reset manual input
+
+        safeSetValue('textFieldCorrectAnswer', ''); // Corrected: this is the input for the correct answer
+
         if (type === 'text') {
-            safeSetValue('textFieldLabel'); safeSetValue('textFieldAnswer'); safeSetChecked('textFieldRequired');
+            safeSetChecked('textFieldRequired');
         } else if (type === 'select') {
-            safeSetValue('selectFieldLabel'); safeSetHTML('selectOptions'); this.addSelectOption();
+            safeSetHTML('selectOptions', ''); // Clear options container
+            this.addSelectOption(); // Add one empty option by default
         } else if (type === 'file') {
-            safeSetValue('fileFieldLabel'); safeSetValue('fileFieldAccept', '*'); safeSetValue('fileFieldMaxSize', '2048');
+            safeSetValue('fileFieldAccept', '*');
+            safeSetValue('fileFieldMaxSize', '2048'); // Default to 2MB
+        } else if (type === 'scale') {
+            safeSetValue('scaleFieldMin', '1');
+            safeSetValue('scaleFieldMax', '5');
+            safeSetValue('scaleFieldStep', '1');
+            safeSetValue('scaleFieldDefault', '1');
+            safeSetValue('scaleFieldPrefix', '');
+            safeSetValue('scaleFieldSuffix', '');
         }
     }
 
@@ -826,32 +1157,80 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeSetValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
         const safeSetChecked = (id, checked) => { const el = document.getElementById(id); if (el) el.checked = checked; };
 
+        const labelElement = document.getElementById(type + 'FieldLabel') || document.getElementById('textFieldLabel');
+        if (labelElement) labelElement.value = field.dataset.label || '';
+
         if (type === 'text') {
-            safeSetValue('textFieldLabel', field.dataset.label || 'Текстовое поле');
-            safeSetValue('textFieldAnswer', field.dataset.answer || '');
             safeSetChecked('textFieldRequired', field.dataset.required === 'true');
+            // Corrected: Retrieve correct answer from correct_answers dataset
+            try {
+                const correctAnswers = JSON.parse(field.dataset.correctAnswers || '{}');
+                safeSetValue('textFieldCorrectAnswer', correctAnswers.text || '');
+            } catch (e) {
+                safeSetValue('textFieldCorrectAnswer', ''); // Fallback if parsing fails
+            }
+
         } else if (type === 'select') {
-            safeSetValue('selectFieldLabel', field.dataset.label || 'Поле-список');
-            const options = JSON.parse(field.dataset.options || '[]');
-            const correctIndex = parseInt(field.dataset.correct || '-1');
+            let options = [];
+            try {
+                options = JSON.parse(field.dataset.options || '[]');
+            } catch (e) {
+                console.error("Error parsing select options:", e);
+            }
+
+            let correctValue = null;
+            try {
+                 const correctAnswers = JSON.parse(field.dataset.correctAnswers || '{}');
+                 correctValue = correctAnswers.select; // Get the correct value from JSON
+            } catch (e) {
+                // Fallback for old format if parsing fails
+                correctValue = field.dataset.correct || null;
+            }
+
             const selectOptionsContainer = document.getElementById('selectOptions');
             if (selectOptionsContainer) {
-                selectOptionsContainer.innerHTML = '';
+                selectOptionsContainer.innerHTML = ''; // Clear existing options
                 if (options.length > 0) {
-                    options.forEach((optionText, index) => this.addSelectOption(optionText, index === correctIndex));
-                } else { this.addSelectOption(); }
+                    options.forEach((optionText) => {
+                        this.addSelectOption(optionText, optionText === correctValue); // Pass the text and check if it's correct
+                    });
+                } else { this.addSelectOption(); } // Add one empty if no options
             }
         } else if (type === 'file') {
-            safeSetValue('fileFieldLabel', field.dataset.label || 'Поле-файл');
-            safeSetValue('fileFieldAccept', field.dataset.accept || '*');
+            // Updated file types logic
+            const acceptValue = field.dataset.accept || '*';
+            safeSetValue('fileFieldAcceptManual', acceptValue); // Set manual input
             safeSetValue('fileFieldMaxSize', field.dataset.maxSize || '2048');
+
+            const presetSelect = document.getElementById('fileFieldAcceptPreset');
+            if (presetSelect) {
+                const matchingOption = Array.from(presetSelect.options).find(opt => opt.value === acceptValue);
+                presetSelect.value = matchingOption ? matchingOption.value : presetSelect.options[0].value;
+            }
+        } else if (type === 'scale') {
+            safeSetValue('scaleFieldMin', field.dataset.min || '1');
+            safeSetValue('scaleFieldMax', field.dataset.max || '5');
+            safeSetValue('scaleFieldStep', field.dataset.step || '1');
+
+            // Corrected: Retrieve default value from correct_answers dataset
+            try {
+                const correctAnswers = JSON.parse(field.dataset.correctAnswers || '{}');
+                safeSetValue('scaleFieldDefault', correctAnswers.default_value || field.dataset.min || '1');
+                safeSetValue('scaleFieldPrefix', correctAnswers.prefix || '');
+                safeSetValue('scaleFieldSuffix', correctAnswers.suffix || '');
+            } catch (e) {
+                safeSetValue('scaleFieldDefault', field.dataset.default || '1');
+                safeSetValue('scaleFieldPrefix', field.dataset.prefix || '');
+                safeSetValue('scaleFieldSuffix', field.dataset.suffix || '');
+            }
         }
     }
+
 
     addSelectOption(text = '', isCorrect = false) {
       const container = document.getElementById('selectOptions');
       if (!container) return;
-      const count = container.children.length;
+      const count = container.children.length; // Use current number of options for value, will be updated on save
       const newOptionDiv = document.createElement('div');
       newOptionDiv.className = 'input-group mb-2';
       newOptionDiv.innerHTML = `
@@ -879,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeRange) {
             return;
         }
-        
+
         const fragment = activeRange.createContextualFragment(html);
         const firstInsertedNode = fragment.firstChild;
         let lastInsertedNode = fragment.lastChild; // This will be the wrapper element
@@ -888,8 +1267,8 @@ document.addEventListener('DOMContentLoaded', () => {
         activeRange.insertNode(fragment); // Insert the new content
 
         // Check if the inserted content is a contenteditable="false" block wrapper
-        const isBlockWrapper = lastInsertedNode && 
-                               (lastInsertedNode.classList.contains('img-resize-wrapper') || 
+        const isBlockWrapper = lastInsertedNode &&
+                               (lastInsertedNode.classList.contains('img-resize-wrapper') ||
                                 lastInsertedNode.classList.contains('response-field-wrapper'));
 
         let newCursorRange = document.createRange();
@@ -1156,6 +1535,104 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
 
+        const insertLinkConfirmBtn = document.getElementById('insertLinkConfirmBtn');
+        if (insertLinkConfirmBtn) {
+            const handler = () => {
+                const url = document.getElementById('linkUrlInput').value.trim();
+                if (!url) {
+                    this.showNotification('URL не может быть пустым.', 'error');
+                    return;
+                }
+
+                // Restore selection that was before modal opening
+                this._ensureValidRange();
+                
+                const selection = window.getSelection();
+                if (!selection || selection.rangeCount === 0) return;
+
+                const range = selection.getRangeAt(0);
+                const linkText = document.getElementById('linkTextInput').value.trim();
+
+                // Check if the selected element is an image
+                const selectedElement = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ?
+                                        range.commonAncestorContainer : range.commonAncestorContainer.parentNode;
+                const isImageSelected = selectedElement.closest('.img-resize-wrapper') || selectedElement.tagName === 'IMG';
+
+                if (isImageSelected) {
+                    this.showNotification('Вставка ссылки на изображение через этот интерфейс не поддерживается.', 'info');
+                    // Clear fields and close modal if not desired
+                    document.getElementById('linkUrlInput').value = '';
+                    document.getElementById('linkTextInput').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('linkInsertModal'))?.hide();
+                    return;
+                }
+
+
+                // If nothing is selected (cursor), insert link as text
+                if (range.collapsed) {
+                    const textToInsert = linkText || url;
+                    const linkNode = document.createElement('a');
+                    linkNode.href = url;
+                    linkNode.textContent = textToInsert;
+                    range.insertNode(linkNode);
+                    // Move cursor after inserted link
+                    range.setStartAfter(linkNode);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } 
+                // If there is a selection (text)
+                else {
+                    // Use document.execCommand for simple and reliable wrapping
+                    // This works for text. For images, we already did the check above.
+                    document.execCommand('createLink', false, url);
+
+                    // If custom text was entered, and only text was selected,
+                    // find the newly created link and change its text.
+                    const selectedContent = selection.toString().trim(); // The text that was selected
+                    // Find the nearest <a> element that was just created
+                    // This can be tricky if the selection spans multiple nodes.
+                    // It's easiest to work if simple text is selected.
+                    let linkElement = range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ? range.commonAncestorContainer : range.commonAncestorContainer.parentElement;
+                    while (linkElement && linkElement !== this.editor && linkElement.tagName !== 'A') {
+                        linkElement = linkElement.parentElement;
+                    }
+
+                    if (linkElement && linkElement.tagName === 'A' && linkElement.href === url) {
+                        // If display text was specified in the modal and it's different from selected
+                        if (linkText && linkText !== selectedContent) {
+                            linkElement.textContent = linkText;
+                        }
+                    } else {
+                        // Fallback for complex selections or if createLink did not work as expected
+                        // In this case, if the user entered linkText, but the link was not inserted,
+                        // you can insert linkNode as in the case of range.collapsed
+                        if (linkText || url) {
+                            const newLinkNode = document.createElement('a');
+                            newLinkNode.href = url;
+                            newLinkNode.textContent = linkText || url;
+                            range.deleteContents(); // Delete old selection
+                            range.insertNode(newLinkNode); // Insert new link
+                            range.setStartAfter(newLinkNode);
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    }
+                }
+
+                this.recordState(false, true); // Save state for Undo/Redo
+                bootstrap.Modal.getInstance(document.getElementById('linkInsertModal'))?.hide();
+            };
+
+            // Remove old handler to avoid duplication
+            const oldHandler = getattr(insertLinkConfirmBtn, '_handler');
+            if (oldHandler) insertLinkConfirmBtn.removeEventListener('click', oldHandler);
+            
+            insertLinkConfirmBtn.addEventListener('click', handler);
+            setattr(insertLinkConfirmBtn, '_handler', handler);
+        }
+
       const applyTableBtn = document.getElementById('apply-table-settings');
       if (applyTableBtn) {
         applyTableBtn.addEventListener('click', () => {
@@ -1243,6 +1720,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
       }
+
+      // Add event listener for fileFieldAcceptPreset
+      document.getElementById('fileFieldAcceptPreset')?.addEventListener('change', function() {
+          const manualInput = document.getElementById('fileFieldAcceptManual');
+          if (manualInput) {
+              manualInput.value = this.value;
+          }
+      });
+
       this.initializeFieldSaveButtons(); // Calls recordState on save
     }
 
@@ -1257,7 +1743,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.currentField && this.currentField.dataset.type === type) {
               const values = getValues();
               for (const key in values) {
-                this.currentField.dataset[key] = values[key];
+                // Special handling for objects that need to be stringified
+                if (typeof values[key] === 'object' && values[key] !== null) {
+                    this.currentField.dataset[key] = JSON.stringify(values[key]);
+                } else {
+                    this.currentField.dataset[key] = values[key];
+                }
               }
               const textSpan = this.currentField.querySelector('.response-text');
               if(textSpan && values.label) textSpan.textContent = this.escapeHtml(values.label);
@@ -1273,31 +1764,47 @@ document.addEventListener('DOMContentLoaded', () => {
           setattr(saveBtn, '_saveFieldHandler', newHandler);
         }
       };
-      createSaveHandler('textFieldModal', 'text', () => ({ /* ... */
+
+      createSaveHandler('textFieldModal', 'text', () => ({
         label: document.getElementById('textFieldLabel')?.value || 'Текстовое поле',
-        answer: document.getElementById('textFieldAnswer')?.value || '',
-        required: (document.getElementById('textFieldRequired')?.checked || false).toString()
+        required: (document.getElementById('textFieldRequired')?.checked || false).toString(),
+        correctAnswers: { text: document.getElementById('textFieldCorrectAnswer')?.value || '' } // Corrected: Save correct answer
       }));
-      createSaveHandler('selectFieldModal', 'select', () => { /* ... */
-        const options = []; let correctIndex = -1;
+
+      createSaveHandler('selectFieldModal', 'select', () => {
+        const options = []; let correctValue = null;
         document.querySelectorAll('#selectOptions .input-group').forEach((group, index) => {
           const input = group.querySelector('input[type="text"]');
           const radio = group.querySelector('input[type="radio"]');
           if (input?.value.trim()) {
             options.push(input.value.trim());
-            if (radio?.checked) correctIndex = index;
+            if (radio?.checked) correctValue = input.value.trim(); // Store the correct value, not index
           }
         });
         return {
           label: document.getElementById('selectFieldLabel')?.value || 'Поле-список',
-          options: JSON.stringify(options),
-          correct: correctIndex.toString()
+          options: options, // Store as array directly, JSON.stringify handled by createSaveHandler
+          correctAnswers: { select: correctValue } // Store as JSON for correct_answers column
         };
       });
-      createSaveHandler('fileFieldModal', 'file', () => ({ /* ... */
+
+      createSaveHandler('fileFieldModal', 'file', () => ({
         label: document.getElementById('fileFieldLabel')?.value || 'Поле-файл',
-        accept: document.getElementById('fileFieldAccept')?.value || '*',
-        maxSize: document.getElementById('fileFieldMaxSize')?.value || '2048'
+        // Use value from manual input, which is updated by preset select
+        accept: document.getElementById('fileFieldAcceptManual')?.value || '*',
+        maxSize: document.getElementById('fileFieldMaxSize')?.value || '2048' // in KB
+      }));
+
+      createSaveHandler('scaleFieldModal', 'scale', () => ({
+          label: document.getElementById('scaleFieldLabel')?.value || 'Поле-шкала',
+          min: document.getElementById('scaleFieldMin')?.value || '1',
+          max: document.getElementById('scaleFieldMax')?.value || '5',
+          step: document.getElementById('scaleFieldStep')?.value || '1',
+          correctAnswers: { // Store prefix, suffix, and default value in correct_answers
+              default_value: document.getElementById('scaleFieldDefault')?.value || '1',
+              prefix: document.getElementById('scaleFieldPrefix')?.value || '',
+              suffix: document.getElementById('scaleFieldSuffix')?.value || ''
+          }
       }));
     }
 
@@ -1369,6 +1876,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (type === 'text') this.openModal('textFieldModal');
       else if (type === 'select') this.openModal('selectFieldModal');
       else if (type === 'file') this.openModal('fileFieldModal');
+      else if (type === 'scale') this.openModal('scaleFieldModal'); // Open scale modal
     }
 
     handleKey(e) {
@@ -1433,18 +1941,42 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if(undoBtn) undoBtn.disabled = true; if(redoBtn) redoBtn.disabled = true;
         } else {
-            this.editor.querySelectorAll('td[data-was-editable="true"]', 'th[data-was-editable="true"]').forEach(cell => {
-                cell.contentEditable = 'true'; cell.removeAttribute('data-was-editable');
-            });
+            // 1. Восстанавливаем контент из сохраненной переменной
             if (this.contentBeforePreview !== null) {
-                 this.editor.innerHTML = this.contentBeforePreview; this.contentBeforePreview = null;
+                 this.editor.innerHTML = this.contentBeforePreview;
+                 this.contentBeforePreview = null;
             }
-            this.reinitializeDynamicElements(); // CRITICAL: re-initialize after restoring HTML
+
+            // 2. Повторно инициализируем все динамические элементы (хендлеры, врапперы и т.д.)
+            this.reinitializeDynamicElements();
+
+            // 3. ТЕПЕРЬ, когда DOM восстановлен, принудительно делаем ячейки редактируемыми
+            this.editor.querySelectorAll('table.ed-tb td, table.ed-tb th').forEach(cell => {
+                // Просто устанавливаем contenteditable в true для всех ячеек всех таблиц редактора
+                cell.setAttribute('contenteditable', 'true');
+
+                // Опционально: очищаем data-атрибут, если он еще остался
+                if (cell.hasAttribute('data-was-editable')) {
+                    cell.removeAttribute('data-was-editable');
+                }
+
+                // Убеждаемся, что в пустой ячейке есть тег <p> для корректной установки курсора
+                if (cell.innerHTML.trim() === '') {
+                    cell.innerHTML = '<p><br></p>';
+                } else if (!cell.querySelector('p, li, h1, h2, h3, h4, h5, h6')) {
+                    const tempContent = cell.innerHTML;
+                    cell.innerHTML = `<p>${tempContent}</p>`;
+                }
+            });
+
+            // 4. Восстанавливаем видимость тулбара и кнопок
             if (toolbar) {
                 toolbar.querySelectorAll('.btn, .form-select, .form-control, .input-group, .dropdown, select, input[type=color]').forEach(el => {
                     el.style.display = ''; if(el.disabled !== undefined) el.disabled = false;
                 });
             }
+
+            // 5. Обновляем состояние кнопок Undo/Redo и фокус
             this.updateUndoRedoButtons();
             this.editor.focus();
             this.updateSelection();
@@ -1452,33 +1984,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     convertFieldsToInputs() {
+      // In teacher's preview, fields become read-only inputs that show the field's label
       this.editor.querySelectorAll('.response-field-wrapper').forEach(wrapper => {
         const field = wrapper.querySelector('.response-field');
         if (!field) { wrapper.remove(); return; }
         const type = field.dataset.type;
+        const label = field.dataset.label || `[${type} field]`;
         let inputHtml = `<div class="mb-2 form-group preview-field-render-wrapper">`;
         if (type === 'text') {
-          const answer = field.dataset.answer || '';
-          inputHtml += `<input type="text" class="form-control preview-response-input" value="${this.escapeHtml(answer)}" readonly placeholder="Ответ пользователя">`;
+          inputHtml += `<input type="text" class="form-control preview-response-input" value="" placeholder="${this.escapeHtml(label)}" readonly>`;
         } else if (type === 'select') {
           const options = JSON.parse(field.dataset.options || '[]');
           let optionsHtml = '';
+          options.forEach(opt => { optionsHtml += `<option value="${this.escapeHtml(opt)}">${this.escapeHtml(opt)}</option>`; });
           if (options.length === 0) {
               optionsHtml += `<option value="" disabled selected>Нет вариантов</option>`;
-          } else {
-              options.forEach(opt => { optionsHtml += `<option value="${this.escapeHtml(opt)}">${this.escapeHtml(opt)}</option>`; });
           }
-          inputHtml += `<select class="form-select preview-response-select">${optionsHtml}</select>`;
+          inputHtml += `<select class="form-select preview-response-select" disabled>${optionsHtml}</select>`;
         } else if (type === 'file') {
-          inputHtml += `<input type="file" class="form-control preview-response-file">`;
+          inputHtml += `<input type="file" class="form-control preview-response-file" disabled>`;
+        } else if (type === 'scale') {
+          // Changed to retrieve values from correct_answers dataset
+          let min = '1', max = '5', step = '1', defaultVal = '1', prefix = '', suffix = '';
+          try {
+              const correctAnswers = JSON.parse(field.dataset.correctAnswers || '{}');
+              defaultVal = correctAnswers.default_value || field.dataset.min || '1'; // Fallback to min if default_value not set
+              prefix = correctAnswers.prefix || '';
+              suffix = correctAnswers.suffix || '';
+          } catch (e) {
+              // Fallback to direct dataset for old format
+              defaultVal = field.dataset.default || '1';
+              prefix = field.dataset.prefix || '';
+              suffix = field.dataset.suffix || '';
+          }
+          min = field.dataset.min || '1'; // min/max/step are from validation_rules, not correct_answers
+          max = field.dataset.max || '5';
+          step = field.dataset.step || '1';
+
+          inputHtml += `<input type="range" class="form-range preview-response-scale" min="${this.escapeHtml(min)}" max="${this.escapeHtml(max)}" step="${this.escapeHtml(step)}" value="${this.escapeHtml(defaultVal)}" disabled>`;
+          inputHtml += `<span class="ms-2 text-muted">(${this.escapeHtml(prefix)}${this.escapeHtml(defaultVal)}${this.escapeHtml(suffix)})</span>`;
         }
         inputHtml += `</div>`;
         wrapper.outerHTML = inputHtml;
       });
     }
 
+    // Renamed from saveContent to saveNotebookContent
     saveContent() {
-      const url = this.editor.dataset.saveUrl;
+      const url = this.editor.dataset.saveUrl; // This will now point to notebooks.saveSnapshot
       let contentToSave = '';
       const wasInPreview = this.editor.classList.contains('preview-mode');
       const sourceHTML = (wasInPreview && this.contentBeforePreview !== null) ? this.contentBeforePreview : this.editor.innerHTML;
@@ -1496,12 +2049,117 @@ document.addEventListener('DOMContentLoaded', () => {
               wrapper.remove();
           }
       });
+
+      // Extract response field data
+      const responseFieldsData = [];
+      let fieldOrder = 0; // Initialize order counter
+      tempDiv.querySelectorAll('.response-field').forEach(fieldEl => {
+          const fieldType = fieldEl.dataset.type;
+          const fieldUUID = fieldEl.dataset.uuid;
+          const fieldLabel = fieldEl.dataset.label;
+
+          const fieldData = {
+              uuid: fieldUUID,
+              field_type: fieldType,
+              label: fieldLabel,
+              order: fieldOrder++
+          };
+
+          // Collect type-specific data for validation_rules and correct_answers
+          if (fieldType === 'text') {
+              fieldData.validation_rules = { required: fieldEl.dataset.required === 'true' };
+              try {
+                  const correctAnswers = JSON.parse(fieldEl.dataset.correctAnswers || '{}');
+                  fieldData.correct_answers = { text: correctAnswers.text || null };
+              } catch (e) {
+                  fieldData.correct_answers = null;
+              }
+          } else if (fieldType === 'select') {
+              const options = JSON.parse(fieldEl.dataset.options || '[]');
+              let correctValue = null;
+              try {
+                  const correctAnswersObj = JSON.parse(fieldEl.dataset.correctAnswers || '{}');
+                  if (correctAnswersObj.select !== undefined) {
+                      correctValue = correctAnswersObj.select;
+                  }
+              } catch (e) { /* ignore parse error, use default */ }
+              fieldData.validation_rules = null;
+              fieldData.correct_answers = { select: correctValue, options: options }; // Store options here as well for backend
+          } else if (fieldType === 'file') {
+              fieldData.validation_rules = {
+                  accept: fieldEl.dataset.accept || '*',
+                  max_size: parseInt(fieldEl.dataset.maxSize || '2048') // in KB
+              };
+              fieldData.correct_answers = null;
+          } else if (fieldType === 'scale') {
+              fieldData.validation_rules = {
+                  min: parseInt(fieldEl.dataset.min || '1'),
+                  max: parseInt(fieldEl.dataset.max || '5'),
+                  step: parseInt(fieldEl.dataset.step || '1')
+              };
+              let defaultVal = '1';
+              let prefix = '';
+              let suffix = '';
+              try {
+                  const correctAnswers = JSON.parse(fieldEl.dataset.correctAnswers || '{}');
+                  defaultVal = correctAnswers.default_value || fieldEl.dataset.min || '1';
+                  prefix = correctAnswers.prefix || '';
+                  suffix = correctAnswers.suffix || '';
+              } catch (e) {
+                  defaultVal = fieldEl.dataset.default || fieldEl.dataset.min || '1';
+                  prefix = fieldEl.dataset.prefix || '';
+                  suffix = fieldEl.dataset.suffix || '';
+              }
+              fieldData.correct_answers = {
+                  default_value: defaultVal,
+                  prefix: prefix,
+                  suffix: suffix
+              };
+          }
+          responseFieldsData.push(fieldData);
+      });
+
+      // --- НАЧАЛО ЗАЩИТНОГО КОДА ---
+      const seenUuids = new Set();
+      const duplicateUuids = new Set();
+
+      // Первый проход: находим дубликаты
+      responseFieldsData.forEach(field => {
+          if (seenUuids.has(field.uuid)) {
+              duplicateUuids.add(field.uuid);
+          }
+          seenUuids.add(field.uuid);
+      });
+
+      // Второй проход: перегенерируем дубликаты и обновляем в DOM и в responseFieldsData
+      if (duplicateUuids.size > 0) {
+          console.warn('Обнаружены и исправлены дубликаты UUID перед сохранением:', Array.from(duplicateUuids));
+          tempDiv.querySelectorAll('.response-field').forEach(fieldEl => {
+              if (duplicateUuids.has(fieldEl.dataset.uuid)) {
+                  const oldUuid = fieldEl.dataset.uuid;
+                  const newUuid = crypto.randomUUID();
+                  fieldEl.dataset.uuid = newUuid;
+                  
+                  // Также нужно найти этот UUID в массиве responseFieldsData и обновить его там
+                  const fieldData = responseFieldsData.find(f => f.uuid === oldUuid);
+                  if(fieldData) {
+                      fieldData.uuid = newUuid;
+                  }
+              }
+          });
+      }
+      // --- КОНЕЦ ЗАЩИТНОГО КОДА ---
+
       contentToSave = tempDiv.innerHTML;
 
+      // Send both content and extracted fields data
       fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : ''},
-        body: JSON.stringify({content: contentToSave})
+        body: JSON.stringify({
+            content_html: contentToSave,
+            response_fields: responseFieldsData
+        })
       })
       .then(async resp => {
         if (resp.ok) {
@@ -1510,6 +2168,10 @@ document.addEventListener('DOMContentLoaded', () => {
             this.undoStack = [{html: contentToSave, hasMarkers: false}]; // Store only the clean HTML
             this.redoStack = [];
             this.updateUndoRedoButtons();
+            // Optionally, refresh snapshot list in settings tab if it's open
+            if (document.getElementById('notebookEditorTabs').querySelector('button[data-bs-target="#versions-pane"]')?.classList.contains('active')) {
+                document.dispatchEvent(new CustomEvent('notebookSnapshotSaved'));
+            }
         } else {
           let errorText = 'Ошибка сохранения';
           try { const data = await resp.json(); if (data.message) errorText = data.message; } catch (e) { /* ignore */ }
@@ -1563,7 +2225,8 @@ document.addEventListener('DOMContentLoaded', () => {
         notification.className = 'notification info';
         if (elementToTrack) setattr(notification, '_trackedElement', elementToTrack); // Tag notification with element
 
-        const messageP = document.createElement('p'); messageP.textContent = message;
+        const messageP = document.createElement('p'); 
+        messageP.innerHTML = message; // USE innerHTML INSTEAD OF textContent
         notification.appendChild(messageP);
         const actionsDiv = document.createElement('div'); actionsDiv.className = 'notification-actions';
 
@@ -1811,18 +2474,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     closeAllModals() {
+      console.log('closeAllModals: Closing all open modals.'); // DEBUG: Close all modals
       document.querySelectorAll('.modal.show').forEach(modal => {
-        const instance = bootstrap.Modal.getInstance(modal); if (instance) instance.hide();
+        const instance = bootstrap.Modal.getInstance(modal);
+        if (instance) {
+            instance.hide();
+            console.log(`closeAllModals: Hidden modal: ${modal.id}`); // DEBUG: Hidden modal
+        }
       });
     }
     openModal(modalId) {
+      console.log(`openModal: Attempting to open modal: ${modalId}`); // DEBUG: Attempting to open modal
       this.updateSelection();
       this.closeAllModals();
       setTimeout(() => {
         const modalElement = document.getElementById(modalId);
         if (modalElement) {
+            console.log(`openModal: Modal element found: ${modalId}`); // DEBUG: Modal element found
             const modalInstance = bootstrap.Modal.getOrCreateInstance(modalElement);
-            modalInstance.show();
+            if (modalInstance) {
+                console.log(`openModal: Bootstrap Modal instance obtained for: ${modalId}. Showing...`); // DEBUG: Modal instance obtained
+                modalInstance.show();
+            } else {
+                console.error(`openModal: Failed to get Bootstrap Modal instance for: ${modalId}`); // ERROR: Could not get instance
+            }
+        } else {
+            console.error(`openModal: Modal element not found: ${modalId}`); // ERROR: Modal element not found
         }
       }, 150);
     }
@@ -1836,9 +2513,659 @@ document.addEventListener('DOMContentLoaded', () => {
       if(el) el[attrName] = value;
   }
 
-  window.editorInstance = new EditorCore();
-});
+  // Ensure crypto.randomUUID() is polyfilled for older browsers if needed.
+  // For modern browsers, it's usually available.
+  if (typeof crypto.randomUUID === 'undefined') {
+    crypto.randomUUID = function() {
+      // This is a simple UUID v4 generator, not cryptographically strong but sufficient for this use case
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    };
+  }
 
+
+  window.editorInstance = new EditorCore();
+
+  // Move JavaScript from partials here, within the same DOMContentLoaded listener.
+  // This ensures editorInstance is defined when these scripts try to use it.
+
+  // --- Start _settings_general.blade.php JS ---
+  (() => {
+    const form = document.getElementById('notebookGeneralSettingsForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const url = form.dataset.updateUrl;
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            // Remove method override from data, it's handled by fetch options
+            delete data['_method'];
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PUT', // Use PUT for update
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const responseData = await response.json();
+
+                if (response.ok) {
+                    // Access editorInstance after it's guaranteed to be defined
+                    window.editorInstance.showNotification('Общие настройки сохранены!', 'success');
+                    // Update the H1 title if it changes
+                    document.querySelector('h1 #notebook-title-header').textContent = responseData.title; // Обновлено
+                } else {
+                    window.editorInstance.showNotification(responseData.message || 'Ошибка сохранения общих настроек.', 'error');
+                }
+            } catch (error) {
+                window.editorInstance.showNotification('Ошибка сети при сохранении общих настроек.', 'error');
+                console.error('Error:', error);
+            }
+        });
+    }
+  })();
+  // --- End _settings_general.blade.php JS ---
+
+  // --- Start _settings_named_links.blade.php JS ---
+  (() => {
+    const namedLinksList = document.getElementById('namedLinksList');
+    const createNamedLinkBtn = document.getElementById('createNamedLinkBtn');
+    const namedLinkModal = new bootstrap.Modal(document.getElementById('namedLinkModal'));
+    const namedLinkModalLabel = document.getElementById('namedLinkModalLabel');
+    const namedLinkTokenDisplay = document.getElementById('namedLinkTokenDisplay');
+    const namedLinkTokenInput = document.getElementById('namedLinkToken');
+    const namedLinkIsActiveInput = document.getElementById('namedLinkIsActive');
+    const copyNamedLinkBtn = document.getElementById('copyNamedLinkBtn');
+    const namedLinkForm = document.getElementById('namedLinkForm');
+    // Использование оригинального синтаксиса Blade для $notebook->id
+    const notebookId = {{ $notebook->id }}; 
+
+    // New controls for all links
+    const massActionsBlock = document.getElementById('massActionsBlock');
+    const deleteAllLinksBtn = document.getElementById('deleteAllLinksBtn');
+    const toggleAllLinksBtn = document.getElementById('toggleAllLinksBtn');
+    const overallProgressDisplay = document.getElementById('overallProgressDisplay');
+
+
+    // Function to fetch and render named links
+    async function fetchNamedLinks() {
+        namedLinksList.innerHTML = '<p class="text-muted">Загрузка ссылок...</p>';
+        try {
+            const response = await fetch(`/notebooks/${notebookId}/named-links`);
+            const links = await response.json();
+
+            // Check notebook access status
+            const notebookAccessResponse = await fetch(`/notebooks/${notebookId}/access-status`);
+            const notebookAccessData = await notebookAccessResponse.json();
+            const isNotebookClosed = notebookAccessData.access === 'closed';
+
+            if (response.ok) {
+                if (links.length === 0) {
+                    namedLinksList.innerHTML = '<p>Пока нет созданных ссылок для этой тетради.</p>';
+                    // Hide mass action block if no links exist
+                    if (massActionsBlock) massActionsBlock.style.display = 'none';
+                    return;
+                }
+                
+                // Show mass action block if links exist
+                if (massActionsBlock) massActionsBlock.style.display = 'block';
+
+
+                let totalInstances = 0;
+                let completedInstances = 0;
+
+                let html = '<ul class="list-group">';
+                links.forEach(link => {
+                    // Determine actual link activity based on notebook access
+                    const actualIsActive = link.is_active && !isNotebookClosed;
+                    const statusText = actualIsActive ? '<span class="badge bg-success">Активна</span>' : '<span class="badge bg-secondary">Неактивна</span>';
+                    const linkUrl = `${window.location.origin}/named-links/${link.token}`;
+                    // Ensure student_notebook_instance_id is available before using it
+                    const progressUrl = link.student_instance && link.student_instance.id ? `/student-notebook-instances/${link.student_instance.id}/progress` : '#';
+
+                    // Counting for overall progress
+                    totalInstances++;
+                    if (link.student_instance && link.student_instance.is_completed) { // Assuming student_instance has an is_completed field
+                        completedInstances++;
+                    }
+
+
+                    html += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                                <strong>${window.editorInstance.escapeHtml(link.title || 'Без названия')}</strong> ${statusText}
+                                <br>
+                                <small class="text-muted">Токен: <a href="${window.editorInstance.escapeHtml(linkUrl)}" target="_blank">${window.editorInstance.escapeHtml(link.token)}</a></small>
+                            </div>
+                            <div class="mt-2 mt-md-0">
+                                <button class="btn btn-info btn-sm view-progress-btn me-1" data-instance-id="${link.student_instance ? link.student_instance.id : ''}" ${link.student_instance ? '' : 'disabled'}>
+                                    <i class="bi bi-eye"></i> Прогресс
+                                </button>
+                                <button class="btn btn-secondary btn-sm edit-named-link-btn me-1" data-id="${link.id}" data-title="${window.editorInstance.escapeHtml(link.title || '')}" data-is-active="${link.is_active ? '1' : '0'}" data-token="${link.token}">
+                                    <i class="bi bi-pencil"></i> Изменить
+                                </button>
+                                <button class="btn btn-danger btn-sm delete-named-link-btn" data-id="${link.id}">
+                                    <i class="bi bi-trash"></i> Удалить
+                                </button>
+                            </div>
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+                namedLinksList.innerHTML = html;
+                addLinkEventListeners();
+
+                // Update overall progress
+                if (overallProgressDisplay) {
+                    overallProgressDisplay.innerHTML = `Общий прогресс: ${completedInstances} из ${totalInstances} (${totalInstances > 0 ? ((completedInstances / totalInstances) * 100).toFixed(0) : 0}%)`;
+                }
+
+            } else {
+                window.editorInstance.showNotification(links.message || 'Ошибка загрузки ссылок.', 'error');
+            }
+        } catch (error) {
+            window.editorInstance.showNotification('Ошибка сети при загрузке ссылок.', 'error');
+            console.error('Error fetching named links:', error);
+        }
+    }
+
+    // Add event listeners for dynamically created buttons
+    function addLinkEventListeners() {
+        document.querySelectorAll('.edit-named-link-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const title = btn.dataset.title;
+                // ИСПРАВЛЕНИЕ: Изменить строгое сравнение со строкой 'true' на нестрогое сравнение с '1'.
+                const isActive = btn.dataset.isActive == '1'; 
+                const token = btn.dataset.token;
+
+                namedLinkModalLabel.textContent = 'Редактировать ссылку';
+                namedLinkForm.action = `/notebooks/${notebookId}/named-links/${id}`;
+                document.getElementById('namedLinkMethod').value = 'PUT';
+                document.getElementById('namedLinkId').value = id;
+                document.getElementById('namedLinkTitle').value = title;
+                document.getElementById('namedLinkIsActive').checked = isActive; // Set checkbox activity status
+
+                namedLinkTokenInput.value = `${window.location.origin}/named-links/${token}`;
+                namedLinkTokenDisplay.style.display = 'block';
+
+                namedLinkModal.show();
+            });
+        });
+
+        document.querySelectorAll('.delete-named-link-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                window.editorInstance.showNotificationWithActions('Вы уверены, что хотите удалить эту ссылку?', [
+                    { text: 'Да', class: 'btn-danger', action: async () => {
+                        try {
+                            const response = await fetch(`/notebooks/${notebookId}/named-links/${id}`, {
+                                method: 'DELETE',
+                                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                            });
+                            if (response.ok) {
+                                window.editorInstance.showNotification('Ссылка успешно удалена.', 'success');
+                                fetchNamedLinks(); // Refresh list
+                            } else {
+                                const errorData = await response.json();
+                                window.editorInstance.showNotification(errorData.message || 'Ошибка удаления ссылки.', 'error');
+                            }
+                        } catch (error) {
+                            window.editorInstance.showNotification('Ошибка сети при удалении ссылки.', 'error');
+                            console.error('Error deleting named link:', error);
+                        }
+                    }},
+                    { text: 'Нет', class: 'btn-secondary', action: () => {} }
+                ]);
+            });
+        });
+
+        document.querySelectorAll('.view-progress-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const instanceId = btn.dataset.instanceId;
+                if (instanceId) { // Only navigate if instanceId exists
+                    window.location.href = `/student-notebook-instances/${instanceId}/progress`; // Navigate to progress page
+                } else {
+                    window.editorInstance.showNotification('Экземпляр тетради для этой ссылки еще не создан.', 'info');
+                }
+            });
+        });
+
+        // Copy button for named link token
+        if (copyNamedLinkBtn) {
+            copyNamedLinkBtn.addEventListener('click', () => {
+                const linkText = namedLinkTokenInput.value;
+                if (linkText) {
+                    try {
+                        // Use execCommand('copy') for better compatibility within iframes
+                        const textarea = document.createElement('textarea');
+                        textarea.value = linkText;
+                        textarea.style.position = 'fixed'; // Prevents scrolling to bottom
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        textarea.remove();
+                        window.editorInstance.showNotification('Ссылка скопирована в буфер обмена!', 'success');
+                    } catch (err) {
+                        console.error('Failed to copy text: ', err);
+                        window.editorInstance.showNotification('Не удалось скопировать ссылку.', 'error');
+                    }
+                }
+            });
+        }
+    }
+
+    // Handle create new link button click
+    createNamedLinkBtn.addEventListener('click', () => {
+        namedLinkModalLabel.textContent = 'Создать новую ссылку';
+        namedLinkForm.action = `/notebooks/${notebookId}/named-links`;
+        document.getElementById('namedLinkMethod').value = 'POST';
+        document.getElementById('namedLinkId').value = '';
+        document.getElementById('namedLinkTitle').value = '';
+        document.getElementById('namedLinkIsActive').checked = true;
+        namedLinkTokenDisplay.style.display = 'none'; // Hide token for new links
+        namedLinkModal.show();
+    });
+
+    // Handle form submission for create/edit
+    namedLinkForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = namedLinkForm.action;
+        const method = document.getElementById('namedLinkMethod').value;
+        const formData = new FormData(namedLinkForm);
+        const data = Object.fromEntries(formData.entries());
+
+        // Checkbox values are tricky; ensure `is_active` is boolean
+        data.is_active = document.getElementById('namedLinkIsActive').checked;
+
+
+        // Remove _method from data, it's handled by fetch options
+        delete data['_method'];
+
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify(data)
+            });
+
+            const responseData = await response.json();
+
+            if (response.ok) {
+                window.editorInstance.showNotification('Ссылка успешно сохранена.', 'success');
+                namedLinkModal.hide();
+                fetchNamedLinks(); // Refresh the list
+            } else {
+                window.editorInstance.showNotification(responseData.message || 'Ошибка сохранения ссылки.', 'error');
+            }
+        } catch (error) {
+            window.editorInstance.showNotification('Ошибка сети при сохранении ссылки.', 'error');
+            console.error('Error saving named link:', error);
+        }
+    });
+
+    // New handlers for managing all links
+    if (deleteAllLinksBtn) {
+        deleteAllLinksBtn.addEventListener('click', () => {
+            window.editorInstance.showNotificationWithActions('Вы уверены, что хотите удалить ВСЕ ссылки для этой тетради? Это действие необратимо.', [
+                { text: 'Да, удалить все', class: 'btn-danger', action: async () => {
+                    try {
+                        const response = await fetch(`/notebooks/${notebookId}/named-links/destroy-all`, {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                        });
+                        if (response.ok) {
+                            window.editorInstance.showNotification('Все ссылки успешно удалены.', 'success');
+                            fetchNamedLinks(); // Refresh list
+                        } else {
+                            const errorData = await response.json();
+                            window.editorInstance.showNotification(errorData.message || 'Ошибка удаления всех ссылок.', 'error');
+                        }
+                    } catch (error) {
+                        window.editorInstance.showNotification('Ошибка сети при удалении всех ссылок.', 'error');
+                        console.error('Error deleting all named links:', error);
+                    }
+                }},
+                { text: 'Отмена', class: 'btn-secondary', action: () => {} }
+            ]);
+        });
+    }
+
+    if (toggleAllLinksBtn) {
+        toggleAllLinksBtn.addEventListener('click', () => {
+            // Determine current state (if at least one is active, suggest deactivating all; otherwise - activate)
+            const currentLinks = Array.from(namedLinksList.querySelectorAll('.list-group-item'));
+            const anyActive = currentLinks.some(li => li.querySelector('.badge.bg-success'));
+            const actionType = anyActive ? 'deactivate' : 'activate';
+            const message = anyActive ? 'Вы уверены, что хотите ДЕАКТИВИРОВАТЬ все ссылки для этой тетради?' : 'Вы уверены, что хотите АКТИВИРОВАТЬ все ссылки для этой тетради?';
+            const confirmText = anyActive ? 'Деактивировать все' : 'Активировать все';
+            const buttonClass = anyActive ? 'btn-warning' : 'btn-success';
+
+            window.editorInstance.showNotificationWithActions(message, [
+                { text: confirmText, class: buttonClass, action: async () => {
+                    try {
+                        const response = await fetch(`/notebooks/${notebookId}/named-links/toggle-all`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({ action: actionType })
+                        });
+                        if (response.ok) {
+                            window.editorInstance.showNotification(`Все ссылки успешно ${actionType === 'activate' ? 'активированы' : 'деактивированы'}.`, 'success');
+                            fetchNamedLinks(); // Refresh list
+                        } else {
+                            const errorData = await response.json();
+                            window.editorInstance.showNotification(errorData.message || 'Ошибка изменения статуса ссылок.', 'error');
+                        }
+                    } catch (error) {
+                        window.editorInstance.showNotification('Ошибка сети при изменении статуса ссылок.', 'error');
+                        console.error('Error toggling all named links:', error);
+                    }
+                }},
+                { text: 'Отмена', class: 'btn-secondary', action: () => {} }
+            ]);
+        });
+    }
+
+
+    // Initial fetch when the tab becomes active
+    const settingsTab = document.getElementById('settings-tab');
+    settingsTab.addEventListener('shown.bs.tab', fetchNamedLinks);
+
+    // Also fetch on initial load if settings tab is somehow active or for first view
+    if (settingsTab.classList.contains('active')) {
+        fetchNamedLinks();
+    }
+  })();
+  // --- End _settings_named_links.blade.php JS ---
+
+  // --- Start _settings_versions.blade.php JS ---
+  (() => {
+    const notebookVersionsList = document.getElementById('notebookVersionsList');
+    const snapshotPreviewModal = new bootstrap.Modal(document.getElementById('snapshotPreviewModal'));
+    const snapshotPreviewModalLabel = document.getElementById('snapshotPreviewModalLabel');
+    const snapshotPreviewContent = document.getElementById('snapshotPreviewContent');
+    // Использование оригинального синтаксиса Blade для $notebook->id
+    const notebookId = {{ $notebook->id }}; 
+
+    // Function to fetch and render notebook versions (snapshots)
+    async function fetchNotebookVersions() {
+        notebookVersionsList.innerHTML = '<p class="text-muted">Загрузка версий...</p>';
+        try {
+            const response = await fetch(`/notebooks/${notebookId}/snapshots`); // New route for snapshots
+            const snapshots = await response.json();
+
+            if (response.ok) {
+                if (snapshots.length === 0) {
+                    notebookVersionsList.innerHTML = '<p>Нет сохраненных версий тетради.</p>';
+                    return;
+                }
+                let html = '<ul class="list-group">';
+                snapshots.forEach(snapshot => {
+                    // Handle $notebook->current_snapshot_id being null. Использование оригинального синтаксиса Blade.
+                    const currentSnapshotId = {{ $notebook->current_snapshot_id ?? 'null' }};
+                    const isActiveText = snapshot.id === currentSnapshotId ? '<span class="badge bg-primary ms-2">Активна</span>' : '';
+                    html += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                            <div>
+                                <strong>Версия ${snapshot.version_number}</strong>
+                                <small class="text-muted ms-2">${new Date(snapshot.created_at).toLocaleString()}</small>
+                                ${isActiveText}
+                            </div>
+                            <div class="mt-2 mt-md-0">
+                                <button class="btn btn-info btn-sm preview-snapshot-btn me-1" data-id="${snapshot.id}" data-version="${snapshot.version_number}">
+                                    <i class="bi bi-eye"></i> Просмотр
+                                </button>
+                                <button class="btn btn-warning btn-sm revert-snapshot-btn" data-id="${snapshot.id}" data-created-at="${snapshot.created_at}">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Откатить
+                                </button>
+                            </div>
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+                notebookVersionsList.innerHTML = html;
+                addVersionEventListeners();
+            } else {
+                window.editorInstance.showNotification(snapshots.message || 'Ошибка загрузки версий тетради.', 'error');
+            }
+        } catch (error) {
+            window.editorInstance.showNotification('Ошибка сети при загрузке версий тетради.', 'error');
+            console.error('Error fetching notebook versions:', error);
+        }
+    }
+
+    function addVersionEventListeners() {
+        document.querySelectorAll('.preview-snapshot-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const snapshotId = btn.dataset.id;
+                const version = btn.dataset.version;
+                snapshotPreviewModalLabel.textContent = `Предпросмотр версии ${version}`;
+                snapshotPreviewContent.innerHTML = '<p class="text-muted text-center">Загрузка контента...</p>';
+
+                try {
+                    // ----------- FIX: Corrected the fetch URL to include the notebook ID -----------
+                    const response = await fetch(`/notebooks/${notebookId}/snapshots/${snapshotId}/content`);
+                    const data = await response.json();
+                    if (response.ok && data.content_html) {
+                        snapshotPreviewContent.innerHTML = data.content_html;
+                        // For preview, disable all interactive elements within the content
+                        snapshotPreviewContent.querySelectorAll('[contenteditable], [draggable], .img-resize-handle, .table-drag-handle, .response-field .remove-btn').forEach(el => {
+                            if (el.hasAttribute('contenteditable')) el.setAttribute('contenteditable', 'false');
+                            if (el.hasAttribute('draggable')) el.setAttribute('draggable', 'false');
+                            el.style.display = 'none'; // Hide handles/buttons
+                            el.style.cursor = 'default';
+                        });
+                        // Convert response-fields to disabled inputs for proper preview display
+                        snapshotPreviewContent.querySelectorAll('.response-field-wrapper').forEach(wrapper => {
+                            const field = wrapper.querySelector('.response-field');
+                            if (!field) return;
+                            const type = field.dataset.type;
+                            const label = field.dataset.label || `[${type} field]`;
+                            let inputHtml = `<div class="mb-2 form-group preview-field-render-wrapper">`;
+                            if (type === 'text') {
+                              inputHtml += `<input type="text" class="form-control preview-response-input" value="" placeholder="${window.editorInstance.escapeHtml(label)}" readonly>`;
+                            } else if (type === 'select') {
+                              const options = JSON.parse(field.dataset.options || '[]');
+                              let optionsHtml = '';
+                              options.forEach(opt => { optionsHtml += `<option value="${window.editorInstance.escapeHtml(opt)}">${window.editorInstance.escapeHtml(opt)}</option>`; });
+                              if (options.length === 0) {
+                                  optionsHtml += `<option value="" disabled selected>Нет вариантов</option>`;
+                              }
+                              inputHtml += `<select class="form-select preview-response-select" disabled>${optionsHtml}</select>`;
+                            } else if (type === 'file') {
+                              inputHtml += `<input type="file" class="form-control preview-response-file" disabled>`;
+                            } else if (type === 'scale') {
+                              // Changed to retrieve values from correct_answers dataset
+                              let min = '1', max = '5', step = '1', defaultVal = '1', prefix = '', suffix = '';
+                              try {
+                                  const correctAnswers = JSON.parse(field.dataset.correctAnswers || '{}');
+                                  defaultVal = correctAnswers.default_value || field.dataset.min || '1'; // Fallback to min if default_value not set
+                                  prefix = correctAnswers.prefix || '';
+                                  suffix = correctAnswers.suffix || '';
+                              } catch (e) {
+                                  // Fallback to direct dataset for old format
+                                  defaultVal = field.dataset.default || '1';
+                                  prefix = field.dataset.prefix || '';
+                                  suffix = field.dataset.suffix || '';
+                              }
+                              min = field.dataset.min || '1'; // min/max/step are from validation_rules, not correct_answers
+                              max = field.dataset.max || '5';
+                              step = field.dataset.step || '1';
+
+                              inputHtml += `<input type="range" class="form-range preview-response-scale" min="${window.editorInstance.escapeHtml(min)}" max="${window.editorInstance.escapeHtml(max)}" step="${window.editorInstance.escapeHtml(step)}" value="${window.editorInstance.escapeHtml(defaultVal)}" disabled>`;
+                              inputHtml += `<span class="ms-2 text-muted">(${window.editorInstance.escapeHtml(prefix)}${window.editorInstance.escapeHtml(defaultVal)}${window.editorInstance.escapeHtml(suffix)})</span>`;
+                            }
+                            inputHtml += `</div>`;
+                            wrapper.outerHTML = inputHtml;
+                        });
+
+                    } else {
+                        snapshotPreviewContent.innerHTML = `<p class="text-danger text-center">Не удалось загрузить контент версии.</p>`;
+                    }
+                } catch (error) {
+                    snapshotPreviewContent.innerHTML = `<p class="text-danger text-center">Ошибка сети при загрузке контента.</p>`;
+                    console.error('Error fetching snapshot content:', error);
+                }
+                snapshotPreviewModal.show();
+            });
+        });
+
+        document.querySelectorAll('.revert-snapshot-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const snapshotId = btn.dataset.id;
+                const snapshotCreatedAt = btn.dataset.createdAt; // Get timestamp of selected snapshot
+
+                // Get all existing snapshots and their created_at
+                const allSnapshots = Array.from(document.querySelectorAll('.revert-snapshot-btn')).map(el => ({
+                    id: el.dataset.id,
+                    createdAt: el.dataset.createdAt
+                }));
+
+                // Determine if there are newer snapshots
+                const hasNewerSnapshots = allSnapshots.some(s => {
+                    return (new Date(s.createdAt).getTime() > new Date(snapshotCreatedAt).getTime()) ||
+                           (new Date(s.createdAt).getTime() === new Date(snapshotCreatedAt).getTime() && parseInt(s.id) > parseInt(snapshotId));
+                });
+
+                let message = 'Вы уверены, что хотите откатить тетрадь к этой версии? Будет создана новая версия с содержимым выбранной.';
+                if (hasNewerSnapshots) {
+                    message += `<br><strong class="text-danger">ВНИМАНИЕ: Все более поздние версии будут удалены безвозвратно.</strong>`;
+                }
+
+                window.editorInstance.showNotificationWithActions(message, [
+                    { text: 'Да, откатить', class: 'btn-warning', action: async () => {
+                        try {
+                            const response = await fetch(`/notebooks/${notebookId}/revert-snapshot/${snapshotId}`, {
+                                method: 'POST',
+                                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') }
+                            });
+                            const responseData = await response.json();
+                            if (response.ok) {
+                                window.editorInstance.showNotification('Тетрадь успешно откачена к выбранной версии.', 'success');
+                                // Force page reload to load the new current snapshot into the editor
+                                window.location.reload();
+                            } else {
+                                window.editorInstance.showNotification(responseData.message || 'Ошибка отката версии тетради.', 'error');
+                            }
+                        } catch (error) {
+                            window.editorInstance.showNotification('Ошибка сети при откате версии тетради.', 'error');
+                            console.error('Error reverting snapshot:', error);
+                        }
+                    }},
+                    { text: 'Отмена', class: 'btn-secondary', action: () => {} }
+                ]);
+            });
+        });
+
+        // Listen for custom event to refresh versions list after a snapshot save
+        document.addEventListener('notebookSnapshotSaved', fetchNotebookVersions);
+
+        // Initial fetch when the tab becomes active
+        const versionsTab = document.getElementById('versions-tab'); // Corrected to versions-tab
+        versionsTab.addEventListener('shown.bs.tab', fetchNotebookVersions);
+
+        // Also fetch on initial load if settings tab is somehow active or for first view
+        if (versionsTab.classList.contains('active')) { // Corrected to versions-tab
+            fetchNotebookVersions();
+        }
+  }
+})();
+  // --- End _settings_versions.blade.php JS ---
+
+  // --- Start _blocks.blade.php JS (if still relevant, though Blocks are less dynamic now) ---
+  (() => {
+    const list = document.getElementById('blocks-list');
+    if (!list) return; // Only run if blocks-list exists
+
+    let dragSrcEl = null;
+
+    // Function to apply CSS class on dragover
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    }
+
+    // dragstart event: save source element
+    function handleDragStart(e) {
+      dragSrcEl = this;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+      this.classList.add('dragging');
+    }
+
+    // drop event: swap content and remove class
+    function handleDrop(e) {
+      e.stopPropagation();
+      if (dragSrcEl !== this) {
+        // Swap in DOM
+        const temp = dragSrcEl.innerHTML;
+        dragSrcEl.innerHTML = this.innerHTML;
+        this.innerHTML = temp;
+        // After visual swap, send new order to server
+        updateOrderOnServer();
+      }
+      return false;
+    }
+
+    // dragend event: remove class
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+    }
+
+    // Attach handlers to each item
+    function addDnDHandlers(item) {
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragover', handleDragOver);
+      item.addEventListener('drop', handleDrop);
+      item.addEventListener('dragend', handleDragEnd);
+    }
+
+    // Initialization: find all .block-item
+    Array.from(list.querySelectorAll('.block-item')).forEach(addDnDHandlers);
+
+    // Function to collect order and send AJAX
+    function updateOrderOnServer() {
+      const order = Array.from(list.children).map(li => li.dataset.id);
+      fetch(window.location.pathname + '/blocks/reorder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ order })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Network error');
+        // window.editorInstance.showNotification('Block order updated.', 'success'); // Optional notification
+      })
+      .catch(err => {
+        console.error('Reorder failed:', err);
+        // window.editorInstance.showNotification('Error changing block order.', 'error'); // Optional notification
+      });
+    }
+  })();
+  // --- End _blocks.blade.php JS ---
+
+  // --- _modal-fields.blade.php, _modal-image.blade.php, _modal-table.blade.php have no direct JS,
+  // their event listeners are handled by EditorCore.initializeModals() or related functions.
+  // _toolbar.blade.php also has no direct JS, its buttons are handled by EditorCore.initializeEventListeners().
+  // No need for separate IIFEs for them.
+});
 </script>
 
 @endsection

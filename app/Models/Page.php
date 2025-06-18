@@ -17,7 +17,7 @@ class Page extends Model implements Auditable
     protected $guarded = ['id'];
 
     /**
-     * Страница принадлежит тетради
+     * Связь: страница принадлежит тетради
      */
     public function notebook(): BelongsTo
     {
@@ -25,7 +25,7 @@ class Page extends Model implements Auditable
     }
 
     /**
-     * Страница содержит упорядоченные блоки
+     * Связь: страница содержит упорядоченные блоки
      */
     public function blocks(): HasMany
     {
